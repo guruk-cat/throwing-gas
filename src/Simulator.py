@@ -15,9 +15,10 @@ xhat = numpy.array([1, 0, 0], dtype=float)
 yhat = numpy.array([0, 1, 0], dtype=float)
 zhat = numpy.array([0, 0, 1], dtype=float)
 
-# pitcher body proportion constants (applied in _configure_physical)
+# pitcher body proportion constants
 _K_SH           = 0.63    # shoulder height as fraction of pitcher height during delivery (absorbs knee bend + forward lean)
 _K_ARM          = 0.37    # arm length as fraction of pitcher height
+_K_EXT          = 0.082   # arm extension (forward lean) as fraction of pitcher height (~15 cm for 182 cm pitcher)
 _MOUND_HEIGHT_M = 0.254   # standard mound height above field level (10 in)
 
 
@@ -207,79 +208,79 @@ class Simulation:
 
 class LaunchConfiguration:
   def __init__(self):
-    self.position       = Q_(0, 'm') * xhat
-    self.speed          = Q_(0, 'm/s')
-    self.direction      = -yhat.copy()
-    self.spin           = Q_(0, 'rad/s')
-    self.spin_direction = xhat.copy()
+    # Arm geometry parameters
+    self.handedness    = 'right'
+    self.arm_slot      = Q_(45, 'degree')
+    self.arm_extension = None              # Q_; if None, derived from height via _K_EXT
+    self.arm_length    = None              # Q_; if None, derived from height via _K_ARM
+
+    # Position parameters — provide one of:
+    #   release_pos  : direct world-frame release point (e.g. from Statcast)
+    #   height       : pitcher height; shoulder estimated from rubber + _K_SH * height
+    self.release_pos   = None              # Q_ vector or ndarray (metres)
+    self.height        = None              # Q_
+    self.rubber        = numpy.array([0.0, 18.44])  # [x_m, y_m]
+
+    # Velocity parameters
+    self.speed           = None            # Q_ scalar; if None, derived from velocity_vector norm
+    self.aim_target      = None            # ndarray (world metres); mutually exclusive with velocity_vector
+    self.velocity_vector = None            # Q_ vector; mutually exclusive with aim_target
+
+    # Spin parameters
+    self.spin        = Q_(0, 'rad/s')
+    self.spin_axis   = xhat.copy()         # unit vector in pitch-frame coordinates
+    self.clock_angle = Q_(0, 'degree')
 
   def configure(self, config):
-    def load_tensor(v):
-      # normalise list inputs: list of Q_, list of strings, or plain numbers
-      if isinstance(v, list):
-        if isinstance(v[0], Q_):
-          units = v[0].units
-          return units * numpy.array([q.to(units).magnitude for q in v])
-        if isinstance(v[0], str):
-          units = Q_(v[0]).units
-          return units * numpy.array([Q_(q).to(units).magnitude for q in v])
-        if isinstance(v[0], numbers.Number):
-          return numpy.array(v, dtype=float)
-      return v
-
-    def decompose(v):
-      # Split a vector quantity into (float magnitude, units str, unit direction array).
-      tensor = v.magnitude if isinstance(v, Q_) else v
-      units  = str(v.units) if isinstance(v, Q_) else None
-      mag    = float(norm(tensor))
-      uhat   = tensor / mag if mag > 0 else None
-      return mag, units, uhat
-
     config_keys_used = []
 
-    # pitch_frame is processed first so individual keys below can override if present
-    if 'pitch_frame' in config:
-      self.configure_pitch_frame(config['pitch_frame'])
-      config_keys_used.append('pitch_frame')
+    for key, attr, parser in [
+      ('handedness',    'handedness',    lambda v: v),
+      ('arm_slot',      'arm_slot',      _parse_quantity),
+      ('arm_extension', 'arm_extension', _parse_quantity),
+      ('arm_length',    'arm_length',    _parse_quantity),
+      ('speed',         'speed',         _parse_quantity),
+      ('spin',          'spin',          _parse_quantity),
+      ('clock_angle',   'clock_angle',   _parse_quantity),
+    ]:
+      if key in config:
+        setattr(self, attr, parser(config[key]))
+        config_keys_used.append(key)
 
     if 'position' in config:
-      self.position = load_tensor(config['position'])
+      pos = config['position']
       config_keys_used.append('position')
+      if 'height' not in pos:
+        raise ValueError("'position.height' is required.")
+      self.height = _parse_quantity(pos['height'])
+      if 'release_pos' in pos:
+        rp = pos['release_pos']
+        units = Q_(rp[0]).units
+        self.release_pos = units * numpy.array([Q_(v).to(units).magnitude for v in rp])
+      if 'rubber' in pos:
+        r = pos['rubber']
+        self.rubber = numpy.array([_parse_quantity(r[0]).to('m').magnitude,
+                                   _parse_quantity(r[1]).to('m').magnitude])
 
-    # velocity vector OR speed + direction — both supported
     if 'velocity' in config:
-      mag, units, uhat = decompose(load_tensor(config['velocity']))
-      self.speed     = Q_(mag, units or 'm/s')
-      self.direction = uhat if uhat is not None else -yhat.copy()
+      vel = config['velocity']
       config_keys_used.append('velocity')
+      if 'target' in vel:
+        t = vel['target']
+        self.aim_target      = numpy.array([_parse_quantity(v).to('m').magnitude for v in t])
+        self.velocity_vector = None
+      elif 'vector' in vel:
+        v = vel['vector']
+        units = Q_(v[0]).units
+        self.velocity_vector = units * numpy.array([Q_(x).to(units).magnitude for x in v])
+        self.aim_target      = None
+      else:
+        raise ValueError("'velocity' must contain 'target' or 'vector'.")
 
-    if 'speed' in config:
-      self.speed = Q_(config['speed'])
-      config_keys_used.append('speed')
-
-    if 'direction' in config:
-      d = load_tensor(config['direction'])
-      d = d.magnitude if isinstance(d, Q_) else numpy.asarray(d, dtype=float)
-      self.direction = d / norm(d)
-      config_keys_used.append('direction')
-
-    # angular velocity vector OR spin + spin_direction — both supported
-    if 'angular_velocity' in config:
-      mag, units, uhat = decompose(load_tensor(config['angular_velocity']))
-      self.spin           = Q_(mag, units or 'rad/s')
-      self.spin_direction = uhat if uhat is not None else xhat.copy()
-      config_keys_used.append('angular_velocity')
-
-    if 'spin' in config:
-      self.spin = Q_(config['spin'])
-      config_keys_used.append('spin')
-
-    for k in ['spin_direction', 'spin direction']:
-      if k in config:
-        d = load_tensor(config[k])
-        d = d.magnitude if isinstance(d, Q_) else numpy.asarray(d, dtype=float)
-        self.spin_direction = d / norm(d)
-        config_keys_used.append(k)
+    if 'spin_axis' in config:
+      ax = numpy.asarray(config['spin_axis'], dtype=float)
+      self.spin_axis = ax / norm(ax)
+      config_keys_used.append('spin_axis')
 
     if len(config_keys_used) != len(config.keys()):
       print("Warning: there were unused keys when configuring LaunchConfiguration:")
@@ -287,88 +288,70 @@ class LaunchConfiguration:
         print("  ", k)
       print("Make sure you didn't mispell something.")
 
-  def configure_pitch_frame(self, config):
-    if 'pitcher_height' in config:
-      self._configure_physical(config)
-    elif 'release_pos_x' in config:
-      raise NotImplementedError("Statcast direct mode (release_pos_x) not yet implemented.")
+  def _resolve_geometry(self):
+    # Returns (release_world_m, arm_dir, M) — all quantities in SI metres.
+    arm_slot_rad = self.arm_slot.to('radian').magnitude
+
+    if self.arm_length is not None:
+      arm_len_m = self.arm_length.to('m').magnitude
+    elif self.height is not None:
+      arm_len_m = _K_ARM * self.height.to('m').magnitude
     else:
-      raise ValueError("pitch_frame must contain 'pitcher_height' (physical mode) or 'release_pos_x' (Statcast mode).")
+      raise ValueError("Cannot resolve arm length: 'position.height' is required.")
 
-  def _configure_physical(self, config):
-    handedness   = config['handedness']
-    height_m     = _parse_quantity(config['pitcher_height']).to('m').magnitude
-    arm_slot_rad = _parse_quantity(config['arm_slot']).to('radian').magnitude
-    arm_length_m = _parse_quantity(config['arm_length']).to('m').magnitude if 'arm_length' in config \
-                   else _K_ARM * height_m
-    arm_ext_m    = _parse_quantity(config['arm_extension']).to('m').magnitude if 'arm_extension' in config \
-                   else 0.0
+    arm_ext_m = self.arm_extension.to('m').magnitude if self.arm_extension is not None \
+                else _K_EXT * self.height.to('m').magnitude
 
-    rubber   = config.get('rubber', ['0 m', '18.44 m'])
-    rubber_x = _parse_quantity(rubber[0]).to('m').magnitude
-    rubber_y = _parse_quantity(rubber[1]).to('m').magnitude
+    arm_dir = arm_direction(arm_slot_rad, self.handedness, arm_ext_m, arm_len_m)
 
-    # shoulder position: rubber (x, y) + proportional height above mound surface
-    shoulder_z     = _K_SH * height_m + _MOUND_HEIGHT_M
-    shoulder_world = numpy.array([rubber_x, rubber_y, shoulder_z])
-    arm_dir        = arm_direction(arm_slot_rad, handedness, arm_ext_m, arm_length_m)
-    release_world  = shoulder_world + arm_length_m * arm_dir
-    M              = build_pitch_frame(release_world, arm_dir)
-
-    # velocity aimed at a target in world coordinates
-    if 'velocity_target' in config:
-      vt = config['velocity_target']
-      target_world = numpy.array([_parse_quantity(vt[0]).to('m').magnitude,
-                                   _parse_quantity(vt[1]).to('m').magnitude,
-                                   _parse_quantity(vt[2]).to('m').magnitude])
-    elif 'sz_top' in config and 'sz_bot' in config:
-      sz_top_m = _parse_quantity(config['sz_top']).to('m').magnitude
-      sz_bot_m = _parse_quantity(config['sz_bot']).to('m').magnitude
-      target_world = numpy.array([0.0, 0.0, (sz_top_m + sz_bot_m) / 2])
+    if self.release_pos is not None:
+      rp = self.release_pos
+      release_world = rp.to('m').magnitude if isinstance(rp, Q_) else numpy.asarray(rp, dtype=float)
+    elif self.height is not None:
+      height_m  = self.height.to('m').magnitude
+      shoulder  = numpy.array([self.rubber[0], self.rubber[1], _K_SH * height_m + _MOUND_HEIGHT_M])
+      release_world = shoulder + arm_len_m * arm_dir
     else:
-      bh_m     = _parse_quantity(config.get('batter_height', '6 ft')).to('m').magnitude
-      sz_bot_m = 0.277 * bh_m   # ABS formula: top of kneecap
-      sz_top_m = 0.536 * bh_m   # ABS formula: midpoint of shoulders and belt
-      target_world = numpy.array([0.0, 0.0, (sz_top_m + sz_bot_m) / 2])
+      raise ValueError("Cannot resolve release point: provide 'position.release_pos' or 'position.height'.")
 
-    self.position  = Q_(release_world, 'm')
-    self.speed     = _parse_quantity(config['speed'])
-    direction      = target_world - release_world
-    self.direction = direction / norm(direction)
-
-    # spin axis given in pitch frame; clock_angle rotates it around y_pitch before transforming to world
-    self.spin = _parse_quantity(config['spin'])
-    spin_ax   = numpy.asarray(config['spin_axis'], dtype=float)
-    spin_ax   = spin_ax / norm(spin_ax)
-    clock_R   = rot_axis(yhat, _parse_quantity(config.get('clock_angle', '0 degree')))
-    self.spin_direction = M @ (clock_R @ spin_ax)
-    self.spin_direction = self.spin_direction / norm(self.spin_direction)
+    M = build_pitch_frame(release_world, arm_dir)
+    return release_world, arm_dir, M
 
   def point_velocity_at(self, r):
-    # Aim velocity toward world-frame position r (metres), preserving speed.
-    dr = numpy.asarray(r, dtype=float) - self.get_position()
-    self.direction = dr / norm(dr)
-
-  def rotate_velocity(self, R):
-    # Apply rotation matrix R to velocity direction, preserving speed.
-    self.direction = R @ self.direction
-    self.direction /= norm(self.direction)
-
-  def rotate_spin(self, R):
-    # Apply rotation matrix R to spin axis.
-    self.spin_direction = R @ self.spin_direction
-    self.spin_direction /= norm(self.spin_direction)
+    self.aim_target      = numpy.asarray(r, dtype=float)
+    self.velocity_vector = None
 
   def get_position(self, unit=ureg.meter):
-    v = self.position
-    if isinstance(v, Q_):
-      return numpy.array([x.to(unit).magnitude for x in v])
-    return numpy.asarray(v, dtype=float)
+    release_world, _, _ = self._resolve_geometry()
+    return Q_(release_world, 'm').to(unit).magnitude
 
   def get_velocity(self, unit=(ureg.meter/ureg.second)):
-    uhat = self.direction / norm(self.direction)
-    return float(self.speed.to(unit).magnitude) * uhat
+    release_world, _, _ = self._resolve_geometry()
+
+    if self.aim_target is not None:
+      dr        = self.aim_target - release_world
+      direction = dr / norm(dr)
+    elif self.velocity_vector is not None:
+      vv_ms     = self.velocity_vector.to('m/s').magnitude if isinstance(self.velocity_vector, Q_) \
+                  else numpy.asarray(self.velocity_vector, dtype=float)
+      direction = vv_ms / norm(vv_ms)
+    else:
+      raise ValueError("Cannot resolve velocity direction: provide 'velocity.target' or 'velocity.vector'.")
+
+    if self.speed is not None:
+      magnitude = float(self.speed.to(unit).magnitude)
+    elif self.velocity_vector is not None:
+      vv        = self.velocity_vector
+      vv_u      = vv.to(unit).magnitude if isinstance(vv, Q_) else numpy.asarray(vv, dtype=float)
+      magnitude = float(norm(vv_u))
+    else:
+      raise ValueError("Cannot resolve speed: provide 'speed' or 'velocity.vector'.")
+
+    return magnitude * direction
 
   def get_spin(self, unit=ureg.radian/ureg.second):
-    uhat = self.spin_direction / norm(self.spin_direction)
-    return float(self.spin.to(unit).magnitude) * uhat
+    _, _, M  = self._resolve_geometry()
+    spin_ax  = self.spin_axis / norm(self.spin_axis)
+    clock_R  = rot_axis(yhat, self.clock_angle)
+    spin_dir = M @ (clock_R @ spin_ax)
+    return float(self.spin.to(unit).magnitude) * (spin_dir / norm(spin_dir))

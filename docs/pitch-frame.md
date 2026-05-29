@@ -2,45 +2,62 @@
 
 ## About
 
-A pitch frame is a coordinate system that is used to configure the initial state vector of the baseball from intuitive data points, which include: arm slot, pitcher height, release speed (scalar), etc. The pitch frame is not used for the simulation nor plotting.
+The pitch frame is a rotational coordinate system whose primary purpose is to allow spin axes to be specified relative to the pitcher's delivery angle, rather than in absolute world coordinates. It is not used for the simulation or plotting — only for interpreting spin axis configuration before the simulation runs.
+
+A separate concern — estimating the release point from pitcher geometry — shares some inputs with the pitch frame (arm slot, handedness) but is conceptually independent. See [Release Point](#release-point) below.
 
 ## World frame
 
-The world frame (or world coordinates) rely on Statcast conventions:
+The world frame (or world coordinates) follow Statcast conventions:
 
 * Origin at home plate.
 * `+x` points to the right side of the catcher/ump (= left side of the pitcher).
-* `+y` towards pitcher (i.e., pitcher thros towards `-y`).
+* `+y` towards pitcher (i.e., pitcher throws towards `-y`).
 * `+z` points to the sky.
 
 ## Pitch frame
 
-The pitch frame (or pitch coordinates) roughly follow the world frame, but the axes are aligned differently. It is primarily defined by, and for the purpose of working with, the position offset caused by the pitcher's arm and knee bends. Details are as follows:
+The pitch frame axes are defined as follows:
 
-* Origin remains at home plate
-* `y` axis is defined by the line from origin to the pitcher's release point. Directionality remains roughly the same, `+y` pointing from home plate towards the pitcher.
-* `x` axis is perpendicular to the *arm slot*. In other words, if a two-dimensinal plane was defined the `y` axis as described above and the pitcher's arm, the `x` axis would be perpendicular to this plane. Alternatively, the `x` axis can be understood as the pure back-spin axis (or pure top-spin axis) when given a certain arm slot.
-* `z` axis is perpendicular to the `xy` plane. Assuming the pitcher does not throw underhand, the `+z` direction still points *roughly* to the sky.
+* `y` axis: unit vector from home plate toward the release point (`+y` pointing toward the pitcher).
+* `x` axis: perpendicular to the plane containing `y_pitch` and the pitcher's arm direction. This is the pure backspin/topspin axis for a given arm slot. (`+x` still points roughly to the catcher/ump's right side; `+x` points to the sky for a righty side-arm pitcher.)
+* `z` axis: right-hand completion of `x` and `y`; points roughly upward for non-underhand deliveries.
 
-All of this means, importantly, that matrix transformation of vectors from the pitch frame to the world frame, and vice versa, can be understood solely in terms of *rotation about the origin*.
+The pitch frame shares its origin with the world frame, so transforming between them is a pure rotation — no translation involved.
+
+The practical value of this frame is that spin axes have intuitive, arm-slot-independent descriptions:
+
+* `[-1, 0, 0]` — pure backspin (four-seam fastball shape)
+* `[1, 0, 0]` — pure topspin
+* `[0, 0, -1]` — arm-side sidespin (sinker/two-seam shape for a righty)
+* `[0, 0, 1]` — glove-side sidespin
+
+These descriptions remain stable even if the arm slot changes, which makes them useful for "what if" comparisons.
 
 ## Release point
 
-An important factor in defining the pitch frame is the release point. Statcast tracks the precise release point in their coordinate system which is functionally identical to the world frame described above. This is the most reliable datapoint to use for the purpose.
+The release point defines `y_pitch` and is therefore required to build the pitch frame. It can be provided in two ways:
 
-**However,** the purpose of the pitch frame, and by extension the purpose of the simulator, is to allow easily human-readable modifications of initial conditions, such that we can go beyond simply tracking real pitches and instead ask: "what would happen if *X* were to change?" Thus, while the release point can be specified directly (say, from Statcast), the configuration still has the capacity to do the following:
+**Direct (Statcast):** `position.release_pos` supplies world-frame coordinates directly.
 
-* Reverse-calculate the "shoulder" position from release point, estimated arm length, pitcher height, arm slot, etc.
-* Re-calculate an alternative release point when given, say, deviations in the arm slot or the arm length.
-* Or simply calculate a release point from imagined values.
+**Estimated (hypothetical pitcher):** `position.height` triggers a geometry derivation. The shoulder position is estimated from pitcher height and rubber position; the release point is then computed as `shoulder + arm_length * arm_dir(arm_slot)`.
 
-All of this can be done via arguments in the configuration setup.
+In both cases, `arm_slot` is always required — it determines `arm_dir`, which defines the pitch frame orientation for spin axis transformation. If the release point is provided directly and you also want to tweak the arm slot, providing `position.height` (or `arm_length` explicitly) allows the shoulder to be back-computed so a new release point can be derived.
 
-## Matrix transformation order
+## Spin axis and clock angle
 
-If a simulation is configured using the intutitve data points such as arm slot (as opposed to raw vector values for the initial state), the order of transformations is as follows:
+`spin_axis` in the config is specified in pitch-frame coordinates. Before being transformed to world coordinates, it can be rotated around `y_pitch` by `clock_angle`, which shifts the axis clockwise or counterclockwise as seen from the pitcher's perspective. The final world-frame spin direction is:
 
-1. Pitch frame is defined.
-2. Initial state vector is configured within the pitch frame.
-3. Initial state vector is translated into the world frame.
-4. Simulation and plotting runs in the world frame.
+```
+spin_dir_world = M @ rot_y(clock_angle) @ spin_axis_pitch
+```
+
+where `M` is the pitch-to-world rotation matrix.
+
+## What the pitch frame does not cover
+
+Velocity direction and speed are specified independently of the pitch frame:
+
+* `velocity.target` aims the ball at a world-frame point.
+* `velocity.vector` supplies the velocity directly.
+* `speed` always controls the magnitude; if `velocity.vector` is provided without `speed`, the magnitude is taken from the vector norm.

@@ -1,17 +1,19 @@
-# Imaginary righty, three-quarter delivery, 6 ft 2 in -- two-seam fastball (sinker)
-# Configured in pitch frame (Mode B: physical / hypothetical parameters).
-# spin_axis [0, 0, -1] in pitch frame -> arm-side sidespin -> down-and-in break vs. righty batter.
+# Imaginary righty, 6 ft 2 in
+# Sinker: spin_axis [0, 0, -1] in pitch frame -> arm-side sidespin -> down-and-in break vs. righty batter.
 
 launch:
-  pitch_frame:
-    rubber:         ["0 m", "18.44 m"]  # center of pitcher's rubber (60.5 ft from home plate)
-    pitcher_height: "6 ft 2 in"
-    handedness:     right
-    arm_slot:       "52 degree"         # three-quarter delivery (roughly 45-60 degrees from horizontal)
-    arm_extension:  "6 in"             # forward lean of arm toward plate at release
-    speed:          "97 mph"
-    spin:           "2100 rpm"          # sinkers run lower spin than four-seamers
-    spin_axis:      [0, 0, -1]          # pitch frame: arm-side sidespin (sinker shape)
-    clock_angle:    "0 degree"
-    batter_height:  "6 ft"             # used to compute strike zone centre for velocity aim
-    velocity_target: ["0.3 m", "0 m", "1.7 m"]  # override aim point (world coords); sinkers need extra height to reach plate
+  handedness:    right
+  arm_slot:      "60 degree"
+  arm_extension: "6 in"
+
+  position:
+    height: "6 ft 2 in"
+    rubber: ["0 m", "18.44 m"]
+
+  speed:       "97 mph"
+  spin:        "2100 rpm"
+  spin_axis:   [0, 0, -1]
+  clock_angle: "0 degree"
+
+  velocity:
+    target: ["0.3 m", "0 m", "1.7 m"]
