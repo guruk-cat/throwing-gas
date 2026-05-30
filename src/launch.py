@@ -54,8 +54,9 @@ def main():
               f"final pos=({trajectory[-1][1]:.2f}, {trajectory[-1][2]:.2f}, {trajectory[-1][3]:.2f}) m")
 
     if args.plot:
+        labels = [pathlib.Path(p).stem for p in config_paths]
         plotter = Trajectory3DPlot()
-        plotter.plot(trajectories, animate=(args.plot == 'animated'))
+        plotter.plot(trajectories, labels=labels, animate=(args.plot == 'animated'))
 
 
 if __name__ == '__main__':
