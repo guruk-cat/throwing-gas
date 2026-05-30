@@ -2,7 +2,7 @@
 
 ## Purpose
 
-This is a baseball pitch simulator. The repo contains physics simulations, configuration tools, and plotting tools, with which you can do the follwing:
+This is a baseball pitch simulator. The repo plans to eventually contain physics simulations, configuration tools, and plotting tools, with which you can do the follwing:
 
 * Tweak around arm slots, spin rate, etc. to visually explore differences in pitch trajectories.
 * Import data from Statcast or Baseball Savant to comapre, modify, and play with pitches actually thrown in the MLB.
