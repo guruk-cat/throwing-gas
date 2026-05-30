@@ -105,7 +105,7 @@ class Simulation:
     self.config.gravitational_acceleration  = Q_(9.8, 'm/s**2')
     self.config.time_step                   = Q_(1, 'ms')
     self.config.time_step_growth_rate       = Q_(1, '')
-    self.config.error_tolerance             = Q_(1, 'percent')
+    self.config.error_tolerance             = Q_(0.1, 'percent')
     self.config.auto_converge_time_step     = True
 
   def configure(self, config):
@@ -354,6 +354,4 @@ class LaunchConfiguration:
     spin_ax  = self.spin_axis / norm(self.spin_axis)
     clock_R  = rot_axis(yhat, self.clock_angle)
     spin_dir = M @ (clock_R @ spin_ax)
-
-    print("spin = ", spin_dir)
     return float(self.spin.to(unit).magnitude) * (spin_dir / norm(spin_dir))

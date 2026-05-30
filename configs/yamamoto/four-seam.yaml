@@ -18,7 +18,7 @@ launch:
   - -1
   - 0
   - 0
-  clock_angle: 324.0000 degree
+  clock_angle: 15.6000 degree
   velocity:
     vector:
     - 8.48816713791721 ft/s

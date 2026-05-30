@@ -1,6 +1,6 @@
 # Yoshinobu Yamamto (R) to Gavin Sheets (L), 2026-05-18, p. 89
 # https://baseballsavant.mlb.com/sporty-videos?playId=7e4a72e7-c305-394c-9591-cb89eb608650
-# Sinker, down and away, 91.9 mph
+# Splitter, down and away, 91.9 mph
 # Struck out swinging
 
 launch:
@@ -18,7 +18,7 @@ launch:
   - -1
   - 0
   - 0
-  clock_angle: 310.0000 degree
+  clock_angle: 0.3000 degree
   velocity:
     vector:
     - 4.564848558573012 ft/s

@@ -14,7 +14,7 @@ def terminate(record):
     state = record[-1]
     if state[3] < 0:    # z < 0: ball hit the ground
         return True
-    if state[2] < -1:   # y < -1: ball is 1m past home plate (catcher position)
+    if state[2] < -1:   # y < -1: ball is at catcher position
         return True
     if state[0] > 10:   # t > 10s: safety valve
         return True

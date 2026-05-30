@@ -87,7 +87,7 @@ def _lookup_mlbam(full_name):
 
 
 def _clock_angle_from_statcast(spin_axis_deg, arm_slot, handedness_num):
-    """
+    '''
     Convert Statcast spin_axis to simulator clock_angle.
 
     Statcast: counter-clockwise from catcher's view, 0° = +X (topspin).
@@ -97,9 +97,8 @@ def _clock_angle_from_statcast(spin_axis_deg, arm_slot, handedness_num):
     The pitcher's lateral release offset (~0.5 m) is small relative to the
     ~16 m mound-to-plate distance, so the pitch frame's X-Z plane is 
     nearly aligned with the world frame.
-    """
-    arm_slot_offset = handedness_num * arm_slot
-    return 180.0 - spin_axis_deg - arm_slot_offset
+    '''
+    return 180.0 - spin_axis_deg - handedness_num * (arm_slot - 90.0)
 
 
 def _require(row, col, label):
@@ -144,10 +143,6 @@ def _build_config(row, height, arm_slot_override):
     # Spin axis → clock_angle
     statcast_axis = float(_require(row, 'spin_axis', 'spin axis'))
     clock_angle = _clock_angle_from_statcast(statcast_axis, arm_slot_float, handedness_num)
-
-    # DEBUG: remove this block when spin axis direction is confirmed.
-    print(f"[DEBUG] statcast spin_axis = {statcast_axis:.1f} deg  →  clock_angle = {clock_angle:.1f} deg", file=sys.stderr)
-    # END DEBUG
 
     '''
     Velocity direction from Statcast's vx0/vy0/vz0 

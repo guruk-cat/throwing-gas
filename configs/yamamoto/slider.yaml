@@ -7,7 +7,7 @@ launch:
   handedness: right
   arm_slot: 44.0 degree
   position:
-    height: 6 ft 2 in
+    height: 5 ft 10 in
     release_pos:
     - -1.84 ft
     - 53.82 ft
@@ -18,7 +18,7 @@ launch:
   - -1
   - 0
   - 0
-  clock_angle: 40.0000 degree
+  clock_angle: 130.0000 degree
   velocity:
     vector:
     - 5.308145555334036 ft/s
