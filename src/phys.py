@@ -206,7 +206,7 @@ class Simulation:
     return record
 
 
-class LaunchConfiguration:
+class Configuration:
   def __init__(self):
     # Arm geometry parameters
     self.handedness    = 'right'

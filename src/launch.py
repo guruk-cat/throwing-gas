@@ -6,9 +6,8 @@ import yaml
 
 sys.path.insert(0, str(pathlib.Path(__file__).parent))
 
-from Simulator import Simulation, LaunchConfiguration
-from Plotter import Trajectory3DPlot
-
+from phys import Simulation, Configuration
+from plotting import Trajectory3DPlot
 
 def terminate(record):
     state = record[-1]
@@ -19,7 +18,6 @@ def terminate(record):
     if state[0] > 10:   # t > 10s: safety valve
         return True
     return False
-
 
 def main():
     parser = argparse.ArgumentParser(description='Baseball pitch simulator')
@@ -39,7 +37,7 @@ def main():
             cfg = yaml.safe_load(f)
 
         sim = Simulation()
-        launch = LaunchConfiguration()
+        launch = Configuration()
 
         if 'simulation' in cfg:
             sim.configure(cfg['simulation'])

@@ -7,7 +7,7 @@ import numpy
 
 sys.path.insert(0, str(pathlib.Path(__file__).parent.parent))
 
-from Simulator import Simulation, LaunchConfiguration
+from phys import Simulation, Configuration
 import generate
 
 # UNIT HELPERS

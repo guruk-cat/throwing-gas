@@ -12,10 +12,7 @@ _STRIKE_ZONE_BOTTOM     = 0.4572  # 1.5 ft
 _STRIKE_ZONE_TOP        = 1.0668  # 3.5 ft
 _BASEBALL_RADIUS        = 0.03683 # 2.9 inch diameter
 
-
-class Trajectory3DPlot:
-  def __init__(self):
-    plot_layout_yaml = '''
+plot_layout_yaml = '''
 scene:
   xaxis:
     title: x
@@ -45,6 +42,9 @@ scene:
     z: 0.5
   aspectmode: manual
 '''
+
+class Trajectory3DPlot:
+  def __init__(self):
     self.layout = yaml.safe_load(plot_layout_yaml)
 
   def _strike_zone_traces(self):
