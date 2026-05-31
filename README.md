@@ -20,11 +20,13 @@ Such questions can be answered with the use of `the-bump`.
 
 The original physics implementation was written in 2018/2019 by two undergraduate students, **June Jung** and **Richard Whitehill**. The code was then rewritten to provide a cleaner API by **C.D. Clark III**. In 2020, we were working on learning-based models to simulate a batter's response to differnt types of pitchers. The repository can be found at [CD3/BaseballSimulator](https://github.com/CD3/BaseballSimulator). 
 
-The present repository is maintained by June Jung. This repository focuses strictly on **accuracy and usability**. Most of the code related to machine learning in `BaseballSimulator` has been stripped away. The following are planned for the future:
-
+The present repository is maintained by June Jung. This repository focuses strictly on **accuracy and usability**. Currently being undertaken are the following: 
 * Test physics engine based on Statcast trackings.
 * Rebuild constant optimizer and re-define the Magnus term coefficient for a regulation baseball. Current value was calculated from data recorded by older literature. New model will use more recent literature + Statcast trackings.
-* Factor in wind and spin-drag (as opposed to purely velocity-based air drag and Magnus force from spin)
+
+The following are planned for the future:
+* Factor in wind 
+* Research on possible changes in spin axis and/or spin rate during ball's fly.
 
 # Try
 
