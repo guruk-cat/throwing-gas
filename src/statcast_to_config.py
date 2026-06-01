@@ -68,10 +68,18 @@ def _disable_ssl_verification():
 _DEFAULT_HEIGHT = "6 ft 2 in"
 
 _LIST_COLS = [
-    'pitch_type', 'balls', 'strikes', 'inning', 'inning_topbot',
-    'batter', 'release_speed', 'release_spin_rate', 'spin_axis',
-    'arm_angle', 'plate_x', 'plate_z', 'description',
+    'pitch_type', 'release_speed', 'release_spin_rate', 
+    'spin_axis', 'arm_angle', 'description',
+    'balls', 'strikes'
 ]
+
+_DISPLAY_NAMES = {
+    'pitch_type':        'pitch type',
+    'release_speed':     'speed',
+    'release_spin_rate': 'spin rate',
+    'spin_axis':         'spin axis',
+    'arm_angle':         'arm angle',
+}
 
 
 def _lookup_mlbam(full_name):
@@ -176,14 +184,39 @@ def _build_config(row, height, arm_slot_override):
     }
 
 
-def _print_pitch_list(df, pitcher):
+def fetch_pitches(pitcher_name, date, no_verify_ssl=False):
+    # Fetch all pitches for a pitcher on a date. 
+    # Returns a chronological DataFrame.
+    if no_verify_ssl:
+        _disable_ssl_verification()
+    mlbam_id = _lookup_mlbam(pitcher_name)
+    print(f"Fetching Statcast data for {pitcher_name} on {date}...", file=sys.stderr)
+    df = statcast_pitcher(date, date, player_id=mlbam_id)
+    if df is None or df.empty:
+        raise ValueError(f"No pitch data found for {pitcher_name} on {date}.")
+    return df.iloc[::-1].reset_index(drop=True)
+
+def pitch_to_config(row, height, arm_slot_override=None):
+    # public function that does the same thing
+    # different name to avoid confusion outside of this file
+    return _build_config(row, height, arm_slot_override)
+
+def print_pitch_list(df, pitcher):
     cols = [c for c in _LIST_COLS if c in df.columns]
-    summary = df[cols].copy()
+    summary = df[cols].rename(columns=_DISPLAY_NAMES)
     summary.index = range(1, len(summary) + 1)
     summary.index.name = '#'
     print(f"\n{len(df)} pitches found for {pitcher}:\n")
-    print(summary.to_string())
-    print("\nRe-run with a pitch number (# column, 1-based) to generate a config.")
+    lines = summary.to_string().splitlines()
+    print(lines[0])  # header
+    print(lines[1])
+    at_bat = 'balls' in df.columns and 'strikes' in df.columns
+    for i, line in enumerate(lines[2:]):
+        if i > 0 and at_bat and df.iloc[i]['balls'] == 0 and df.iloc[i]['strikes'] == 0:
+            print() # insert empty line for new at-bat
+        print(line)
+    
+    print(f"\n****** end of list ******")
 
 
 def main():
@@ -209,24 +242,14 @@ def main():
                         help='Disable SSL certificate verification (corporate proxy workaround).')
     args = parser.parse_args()
 
-    if args.no_verify_ssl:
-        _disable_ssl_verification()
-
     try:
-        mlbam_id = _lookup_mlbam(args.pitcher)
+        df = fetch_pitches(args.pitcher, args.date, no_verify_ssl=args.no_verify_ssl)
     except ValueError as e:
         sys.exit(str(e))
 
-    print(f"Fetching Statcast data for {args.pitcher} on {args.date}...", file=sys.stderr)
-    df = statcast_pitcher(args.date, args.date, player_id=mlbam_id)
-
-    if df is None or df.empty:
-        sys.exit(f"No pitch data found for {args.pitcher} on {args.date}.")
-
-    df = df.iloc[::-1].reset_index(drop=True)
-
     if args.pitch_number is None:
-        _print_pitch_list(df, args.pitcher)
+        print_pitch_list(df, args.pitcher)
+        print("Re-run with a pitch number (# column, 1-based) to generate a config.")
         return
 
     idx = args.pitch_number - 1
@@ -242,7 +265,7 @@ def main():
         height = args.height
 
     try:
-        config = _build_config(row, height, args.arm_slot)
+        config = pitch_to_config(row, height, args.arm_slot)
     except ValueError as e:
         sys.exit(str(e))
 
