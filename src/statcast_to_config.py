@@ -117,7 +117,16 @@ def _require(row, col, label):
     return val
 
 
-def _build_config(row, height, arm_slot_override):
+def _build_training(row):
+    px = float(_require(row, 'plate_x', 'plate position x'))
+    pz = float(_require(row, 'plate_z', 'plate position z'))
+    return {
+        'plate_x': f"{px:.6f} ft",
+        'plate_z': f"{pz:.6f} ft",
+    }
+
+
+def _build_config(row, height, arm_slot_override, include_training=False):
     handedness = 'right' if row['p_throws'] == 'R' else 'left'
     handedness_num = 1 if row['p_throws'] == 'R' else -1
     arm_slot_float = 0.0
@@ -163,7 +172,7 @@ def _build_config(row, height, arm_slot_override):
     vy = float(_require(row, 'vy0', 'velocity y'))
     vz = float(_require(row, 'vz0', 'velocity z'))
 
-    return {
+    cfg = {
         'launch': {
             'handedness': handedness,
             'arm_slot': arm_slot_str,
@@ -182,6 +191,9 @@ def _build_config(row, height, arm_slot_override):
             },
         }
     }
+    if include_training:
+        cfg['training'] = _build_training(row)
+    return cfg
 
 
 def fetch_pitches(pitcher_name, date, no_verify_ssl=False):
@@ -196,10 +208,10 @@ def fetch_pitches(pitcher_name, date, no_verify_ssl=False):
         raise ValueError(f"No pitch data found for {pitcher_name} on {date}.")
     return df.iloc[::-1].reset_index(drop=True)
 
-def pitch_to_config(row, height, arm_slot_override=None):
+def pitch_to_config(row, height, arm_slot_override=None, include_training=False):
     # public function that does the same thing
     # different name to avoid confusion outside of this file
-    return _build_config(row, height, arm_slot_override)
+    return _build_config(row, height, arm_slot_override, include_training=include_training)
 
 def print_pitch_list(df, pitcher):
     cols = [c for c in _LIST_COLS if c in df.columns]
@@ -238,6 +250,8 @@ def main():
                         help='Output YAML file path. Defaults to stdout.')
     # TEMPORARY: remove this argument (and the _disable_ssl_verification call below)
     # once the SSL situation is resolved.
+    parser.add_argument('--training', action='store_true',
+                        help='Include a training: block with plate_x/plate_z for use by the optimizer.')
     parser.add_argument('--no-verify-ssl', dest='no_verify_ssl', action='store_true',
                         help='Disable SSL certificate verification (corporate proxy workaround).')
     args = parser.parse_args()
@@ -265,7 +279,7 @@ def main():
         height = args.height
 
     try:
-        config = pitch_to_config(row, height, args.arm_slot)
+        config = pitch_to_config(row, height, args.arm_slot, include_training=args.training)
     except ValueError as e:
         sys.exit(str(e))
 

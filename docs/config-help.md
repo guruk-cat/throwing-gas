@@ -1,6 +1,6 @@
 # Configuration Reference
 
-A config file is a YAML document with up to two top-level blocks: `launch` (required) and `simulation` (optional). All physical quantities are strings parsed by `pint` — units can be in any compatible form (e.g. `"97 mph"`, `"43.3 m/s"`).
+A config file is a YAML document with up to three top-level blocks: `launch` (required), `simulation` (optional), and `training` (optional). All physical quantities are strings parsed by `pint` — units can be in any compatible form (e.g. `"97 mph"`, `"43.3 m/s"`).
 
 ## `launch`
 
@@ -93,6 +93,23 @@ All keys are optional. Omitted keys keep their defaults.
 | `auto_converge_time_step` | `true` | Whether to apply adaptive step-size halving at all. |
 | `wind_speed` | `0 mph` | Not yet implemented in force calculations; reserved. |
 | `wind_direction` | `0 degree` | Not yet implemented; reserved. |
+
+## `training`
+
+Optional block written by `statcast_to_config.py --training` or the `command.py` CLI tool when selecting the appropriate option. Stores the ground-truth plate crossing position from Statcast, used by the optimizer as the target output (s₂) for a pitch.
+
+| Key | Type | Description |
+|---|---|---|
+| `plate_x` | quantity (length) | Horizontal position at home plate. Positive = catcher's right (from catcher's perspective). |
+| `plate_z` | quantity (length) | Height above ground at home plate. |
+
+```yaml
+training:
+  plate_x: "0.531479 ft"
+  plate_z: "1.978534 ft"
+```
+
+Not read by `launch.py` or `Simulation` — ignored outside the optimizer.
 
 ## Full example
 

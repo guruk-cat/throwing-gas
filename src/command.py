@@ -11,6 +11,10 @@ sys.path.insert(0, str(pathlib.Path(__file__).parent))
 from statcast_to_config import fetch_pitches, pitch_to_config, print_pitch_list
 
 
+# Run with options
+include_training_data = False
+
+
 # CLI helpers
 
 def clear_cli():
@@ -179,7 +183,7 @@ def menu_build_config(df, pitches):
     for i in pitches:
         row = df.iloc[i]
         try:
-            config = pitch_to_config(row, height, arm_slot)
+            config = pitch_to_config(row, height, arm_slot, include_training=include_training_data)
         except ValueError as e:
             print(f"  Skipping pitch #{i + 1}: {e}")
             continue
@@ -231,13 +235,23 @@ def search_statcast(inject=None, fetch_only=False):
 def fetch_and_go():
     search_statcast(fetch_only=True)
 
-def preferences():
-    return
+
+
+def confirm_output_training_data():
+    global include_training_data
+    clear_cli()
+    include_training_data = yes_or_no("\nInclude training data in the file output?")
+
+options = Menu("Options",[
+    ("Include training data in the file output", confirm_output_training_data)
+])
+
+    
 
 statcast_menu = Menu("Start with data from Statcast", [
     ("Search and select", search_statcast),
     ("Fetch only\n     (use this if you already know specific pitch count numbers)", fetch_and_go),
-    ("Preferences", preferences),
+    (options.title, options),
     ("Exit", exit_cli)
 ], suppress_back_key=True)
 
