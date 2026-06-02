@@ -3,6 +3,7 @@ import types
 import pint
 import numpy
 from numpy.linalg import norm
+import sys
 
 
 ureg = pint.UnitRegistry()
@@ -103,7 +104,7 @@ class Simulation:
     self.config.ball_mass                   = Q_(145, 'g')
     self.config.ball_diameter               = Q_(3, 'in')
     self.config.gravitational_acceleration  = Q_(9.8, 'm/s**2')
-    self.config.time_step                   = Q_(1, 'ms')
+    self.config.time_step                   = Q_(0.25, 'ms')
     self.config.time_step_growth_rate       = Q_(1, '')
     self.config.error_tolerance             = Q_(0.1, 'percent')
     self.config.auto_converge_time_step     = True
@@ -175,7 +176,7 @@ class Simulation:
     # normalised by the total displacement from s0
     return norm(s2 - s1) / norm(s2 - s0)
 
-  def run(self, launch_config, terminate_function=lambda record: len(record) > 1000, record_all=True):
+  def run(self, launch_config, terminate_function=lambda record: len(record) > 1000, record_all=True, adaptive=True):
     state = numpy.zeros(self.state_size)
     state[1:4]  = launch_config.get_position()
     state[4:7]  = launch_config.get_velocity()
@@ -183,25 +184,29 @@ class Simulation:
 
     record = [state.copy()]
     dt = self.config.time_step.to('s').magnitude
+
     while not terminate_function(record):
       # adaptive step: compare one full step vs two half steps; halve dt if error too large
-      while True:
-        s1  = self.rk4(dt,   state)
+      while adaptive:
+        s1  = self.rk4(dt, state)
         s2  = self.rk4(dt/2, self.rk4(dt/2, state))
         err = self._step_error(state, s1, s2)
         if self.config.auto_converge_time_step and err > self.config.error_tolerance.to('').magnitude:
           print(f"Info: decreasing time step from {dt} to {dt/2}")
           dt /= 2
         else:
+          state = s2
           break
 
-      state = s2
+      if not adaptive:
+        state = self.rk4(dt, state)
+      if adaptive:
+        dt *= self.config.time_step_growth_rate.to('').magnitude
+
       if record_all:
         record.append(state.copy())
       else:
         record[0] = state.copy()
-
-      dt *= self.config.time_step_growth_rate.to('').magnitude
 
     return record
 
