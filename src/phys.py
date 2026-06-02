@@ -7,8 +7,8 @@ import sys
 
 
 ureg = pint.UnitRegistry()
-ureg.define('percent = 0.01 rad')  # convenience unit for relative error tolerances
-Q_ = ureg.Quantity
+ureg.define('percent = 0.01 rad')   # convenience unit for relative error tolerances
+Q_ = ureg.Quantity                  # type: ignore[misc]
 pint.set_application_registry(ureg)
 
 xhat = numpy.array([1, 0, 0], dtype=float)

@@ -15,7 +15,7 @@ from phys import Simulation, Configuration
 # UNIT HELPERS
 
 ureg = pint.UnitRegistry()
-Q_ = ureg.Quantity
+Q_ = ureg.Quantity  # type: ignore[misc]
 pint.set_application_registry(ureg)
 
 xhat = numpy.array([1, 0, 0], dtype=float)
