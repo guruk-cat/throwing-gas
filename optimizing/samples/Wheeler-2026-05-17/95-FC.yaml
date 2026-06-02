@@ -1,0 +1,26 @@
+launch:
+  handedness: right
+  arm_slot: 22.7 degree
+  position:
+    height: 6 ft 4 in
+    release_pos:
+    - -2.11 ft
+    - 53.58 ft
+    - 4.72 ft
+  speed: 93.3 mph
+  spin: 2593.0 rpm
+  spin_axis:
+  - -1
+  - 0
+  - 0
+  clock_angle: 25.3000 degree
+  velocity:
+    vector:
+    - 7.1360585283634 ft/s
+    - -136.03670238631497 ft/s
+    - -1.9959901976852468 ft/s
+    statcast: true
+training:
+  ax: -3.277863 ft/s**2
+  ay: 21.917247 ft/s**2
+  az: -21.323530 ft/s**2
