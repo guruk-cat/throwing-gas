@@ -104,7 +104,7 @@ class Simulation:
     self.config.ball_mass                   = Q_(145, 'g')
     self.config.ball_diameter               = Q_(3, 'in')
     self.config.gravitational_acceleration  = Q_(9.8, 'm/s**2')
-    self.config.time_step                   = Q_(0.25, 'ms')
+    self.config.time_step                   = Q_(0.5, 'ms')
     self.config.time_step_growth_rate       = Q_(1, '')
     self.config.error_tolerance             = Q_(0.1, 'percent')
     self.config.auto_converge_time_step     = True
@@ -184,9 +184,12 @@ class Simulation:
 
     record = [state.copy()]
     dt = self.config.time_step.to('s').magnitude
+    if not adaptive:
+      dt = dt/2   # exists to match the precision of adaptive stepping's dt/2
 
     while not terminate_function(record):
-      # adaptive step: compare one full step vs two half steps; halve dt if error too large
+      # adaptive step: compare one full step vs two half steps; 
+      # halve dt if error too large
       while adaptive:
         s1  = self.rk4(dt, state)
         s2  = self.rk4(dt/2, self.rk4(dt/2, state))
@@ -195,13 +198,14 @@ class Simulation:
           print(f"Info: decreasing time step from {dt} to {dt/2}")
           dt /= 2
         else:
-          state = s2
+          state = s2  # use the better one since it's already computed anyways
           break
+
+      if adaptive:
+        dt *= self.config.time_step_growth_rate.to('').magnitude
 
       if not adaptive:
         state = self.rk4(dt, state)
-      if adaptive:
-        dt *= self.config.time_step_growth_rate.to('').magnitude
 
       if record_all:
         record.append(state.copy())
