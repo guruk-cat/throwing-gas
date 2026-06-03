@@ -1,8 +1,8 @@
-# Case Study: Yoshinobu Yamamoto to Ramón Laureano, three-pitch strikeout
+# Pitch Sequencing
 
 ## About
 
-On May 18, 2026, during the Dodgers-Padres game, Yamamoto (with Will Smith catching) threw a nasty three-pitch sequence to strike out the batter. The sequence was: Four-seamer -> Curveball -> Splitter (pitch numbers 31-33).
+On May 18, 2026, during the Dodgers-Padres game, Yamamoto (with Will Smith catching) threw a nasty three-pitch sequence to strike out Ramón Laureano. The sequence was: Four-seamer -> Curveball -> Splitter (pitch numbers 31-33).
 
 ## Resources
 
