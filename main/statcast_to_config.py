@@ -83,13 +83,19 @@ _DISPLAY_NAMES = {
 
 
 def _lookup_mlbam(full_name):
+    if full_name.strip().isdigit():
+        return int(full_name.strip())
     parts = full_name.strip().split()
     if len(parts) < 2:
-        raise ValueError(f"Provide a full name (first + last), got: {full_name!r}")
+        raise ValueError(f"Provide a full name (first + last) or a numeric MLBAM ID, got: {full_name!r}")
     first, last = parts[0], " ".join(parts[1:])
     results = playerid_lookup(last, first)
     if results is None or results.empty:
-        raise ValueError(f"No player found for {full_name!r}.")
+        raise ValueError(
+            f"No player found for {full_name!r}.\n"
+            "If the player is missing from the Chadwick register, pass their MLBAM ID directly\n"
+            "(find it on Baseball Savant) instead of a name."
+        )
     if len(results) > 1:
         results = results.sort_values('mlb_played_last', ascending=False)
     return int(results.iloc[0]['key_mlbam'])
@@ -237,7 +243,7 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=__doc__,
     )
-    parser.add_argument('pitcher', help='Pitcher full name (e.g. "Clayton Kershaw")')
+    parser.add_argument('pitcher', help='Pitcher full name (e.g. "Clayton Kershaw") or numeric MLBAM ID (find on Baseball Savant)')
     parser.add_argument('date', help='Game date (YYYY-MM-DD)')
     parser.add_argument('pitch_number', nargs='?', type=int,
                         help='Pitch to export (# from the list, 1-based). Omit to list pitches.')

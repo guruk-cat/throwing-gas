@@ -172,17 +172,18 @@ def menu_after_pitch_print(df):
             pass  # TO-DO: handle out-of-range
 
     menu = Menu("Options:", [
-        ("Different search", search_statcast),
-        ("Select pitches from here", select_and_build)
+        ("Select pitches from here", select_and_build),
+        ("Different search", search_statcast)
     ])
     menu.run_menu(new_page=False)
 
 def menu_build_config(df, pitches):
     clear_cli()
     height = simple_question("\nEnter pitcher height (e.g. \"6 ft 2 in\")...")
-    clear_cli()
-    arm_slot_str = simple_question("\nEnter arm slot override in degrees, or leave blank to use Statcast data...")
-    arm_slot = float(arm_slot_str) if arm_slot_str else None
+    # clear_cli()
+    # arm_slot_str = simple_question("\nEnter arm slot override in degrees, or leave blank to use Statcast data...")
+    # arm_slot = float(arm_slot_str) if arm_slot_str else None
+    arm_slot = None # disable arm slot override
 
     raw_name = str(df.iloc[0]['player_name'])
     pitcher_slug = raw_name.split(',')[0].strip().replace(' ', '-')
@@ -218,7 +219,7 @@ def search_statcast(inject=None, fetch_only=False):
         print(inject)
         print(f"{title.upper()}")
 
-    pitcher = simple_question("  Enter the name of the pitcher...")
+    pitcher = simple_question("  Enter the name (first + last) of the pitcher...")
     date = simple_question("  Enter the date of the game (YYYY-MM-DD)...")
     clear_cli()
 
