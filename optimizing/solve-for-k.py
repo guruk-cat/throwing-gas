@@ -15,14 +15,14 @@ from phys import Simulation, Configuration
 # UNIT HELPERS
 
 ureg = pint.UnitRegistry()
-Q_ = ureg.Quantity  # type: ignore[misc]
+Q_ = ureg.Quantity  
 pint.set_application_registry(ureg)
 
 xhat = numpy.array([1, 0, 0], dtype=float)
 yhat = numpy.array([0, 1, 0], dtype=float)
 zhat = numpy.array([0, 0, 1], dtype=float)
 
-report_d_error = "inch"
+report_d_error = 'inch'
 k_unit = 'kg*s/m'
 
 def si_mag(quant):
@@ -113,26 +113,19 @@ def select_batches():
 
 # MATH STUFF
 
-def run_single(cfg):
-    # cfg: full YAML dict (with 'launch', optionally 'simulation').
+def compute_single_sim(cfg):
     # Run simulation with Magnus term = 0.
-    # Returns numpy [ax, ay, az] in m/s².
     sim = Simulation()
-    if 'simulation' in cfg:
-        sim.configure(cfg['simulation'])
     sim.config.magnus_coefficient = Q_(0, k_unit)
     launch = Configuration()
     launch.configure(cfg['launch'])
-    return sim.point_run(launch)
 
-def get_r(a_true, a_base):
-    return a_true - a_base
+    spin = launch.get_spin()
+    velo = launch.get_velocity()
+    cross = numpy.cross(spin, velo)
+    dv_dt = sim.point_run(launch)
 
-def get_c(spin, velo):
-    return numpy.cross(spin, velo)
-
-def get_k(r, c):
-    pass
+    return cross, dv_dt
 
 def main():
     batch_dirs = select_batches()
@@ -144,3 +137,28 @@ def main():
         print(f"  {d.name}: {len(cfgs)} pitches loaded.")
     time.sleep(1)
 
+    r_dot_c_sum = 0 
+    c_squared_sum = 0
+    for batch in batches:
+        name, cfgs, refs = batch
+        print(f"Computing for: [{name}]")
+        crosses = []
+        dv_dts = []
+        for cfg in cfgs:
+            cross, dv_dt = compute_single_sim(cfg)
+            crosses.append(cross)
+            dv_dts.append(dv_dt)
+        crosses = numpy.array(crosses)
+        dv_dts = numpy.array(dv_dts)
+        r_s = refs - dv_dts
+        for i in range(len(r_s)):
+            r_dot_c_sum += numpy.dot(r_s[i], crosses[i])
+            c_squared_sum += numpy.dot(crosses[i], crosses[i])
+        delete_lines(1)
+    
+    k = r_dot_c_sum / c_squared_sum
+    print(f"Final K = {k:.8e} ({k_unit})")
+
+
+if __name__ == '__main__':
+    main()
