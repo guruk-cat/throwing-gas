@@ -13,6 +13,8 @@ ureg = pint.UnitRegistry()
 Q_ = ureg.Quantity
 pint.set_application_registry(ureg)
 
+pitch_name = 'Webb-SI'
+
 def terminate(record):
     state = record[-1]
     if state[3] < 0:  
@@ -25,7 +27,7 @@ def terminate(record):
 
 def main():
     tests_dir = pathlib.Path(__file__).parent / 'configs'
-    config_path = tests_dir / 'Webb-SI.yaml'
+    config_path = tests_dir / (pitch_name + '.yaml')
 
     with open(config_path) as f:
         cfg = yaml.safe_load(f)
@@ -43,18 +45,21 @@ def main():
     sinker_no_drag = numpy.array(sim_no_drag.run(launch, terminate))
     sinker_only_grav = numpy.array(sim_only_grav.run(launch, terminate))
 
-    os.system('cls' if os.name == 'nt' else 'clear')
+    # os.system('cls' if os.name == 'nt' else 'clear')
+    print(f"[ {pitch_name} ]\n")
     init = sinker_no_drag[0]
-    print(f"spin = ( {init[7]:.3f}, {init[8]:.3f}, {init[9]:.3f} )\n")
+    spin = init[7:10]
+    spin = spin / numpy.linalg.norm(spin)
+    print(f"spin = ( {spin[0]:.2f}, {spin[1]:.2f}, {spin[2]:.2f} )\n")
     time_step = DEFAULT_TIME_STEP.to_base_units().magnitude
     interval = round(0.05 / time_step)
-    print(f" time |    velo without drag    | velo with only gravity  |")
-    print(f"______|_________________________|_________________________|")
+    print(f"| time | velo (m/s) without drag (x, y, z) | velo (m/s) with only gravity (x, y, z) |")
+    print(f"| --- | --- | --- |")
     for i in range(sinker_no_drag.size):
         if i % interval == 0:
             s1 = sinker_no_drag[i]
             s2 = sinker_only_grav[i]
-            print(f" {i*time_step:.2f} |", end="")
+            print(f"| {i*time_step:.2f} |", end="")
             print(f" ( {s1[4]:.2f}, {s1[5]:.2f}, {s1[6]:.2f} ) |", end="")
             print(f" ( {s2[4]:.2f}, {s2[5]:.2f}, {s2[6]:.2f} ) |")
 

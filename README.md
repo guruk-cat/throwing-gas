@@ -8,10 +8,11 @@ This is a baseball pitch simulator. The repo contains a physics simulator, confi
 * Import data from Statcast to comapre, modify, and play with pitches actually thrown in the MLB.
 * Create imaginary pitcher profiles or test "what if" scenarios.
 
-Studies are being conducted to improve the accuracy of the simulations. A simple CLI tool has been built for utilizing Statcast, and more work is to come. For the latest work undertaken, see the following:
+Studies are being conducted to improve the accuracy of the simulations. Other studies focus on better understanding pitch types. A simple CLI tool has been built for utilizing Statcast, and more work is to come. For the latest work undertaken, see the following:
 
-* [Optimizing for constant *K*](optimizing/optimizing.md)
 * [Back-computing initial velocity from Statcast](studies/init-v/back-computing-v.md)
+* [What makes a fastball fast? (Other than yanking it has hard as one can.)](studies/fastballs/fastballs.md)
+* [Optimizing for constant *K*](optimizing/optimizing.md)
 
 ## Authors and History
 
@@ -40,7 +41,7 @@ While Statcast and Baseball Savant provide precise trackings of pitches and body
 * Clayton Kershaw and Hyun-Jin Ryu, who played together for the Dodgers, reportedly shared with each other tips on their respective signature pitches: Kershaw's curveball and Ryu's changeup. But apparently, Kershaw's arm angle was simply not compatible with Ryu's changeup grip. If everything else stayed constant, what might it look like if Kershaw threw with Ryu's spin axis?
 * Trey Yesavage's extremely high release point really confuses batters. Interestingly, his sliders break towards the *arm side* instead of the glove side. At what point does a slider act weirdly like his?
 
-You can attempt to answer such questions by recreating the pitch in a simulation. Run `main/command.py` to launch a CLI tool that will help you search, select, and configure pitches from the Statcast database. The CLI tool uses `main/statcast-to-config.py`, which you can also run directly from the terminal with line arguments; the file has a comment block that explains how to use arguments. 
+You can attempt to answer such questions by recreating the pitch in a simulation. Run `main/command.py` to launch a CLI tool that will help you search, select, and configure pitches from the Statcast database. The CLI tool uses `main/statcast-to-config.py`, which you can also run directly from the terminal with line arguments.
 
 The above scripts rely on the [pybaseball](https://github.com/jldbc/pybaseball) package to retrieve raw values from the Statcast database. 
 
