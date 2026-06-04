@@ -3,3 +3,4 @@ __pycache__/
 notes.*
 tmp/
 .DS_Store
+*.local.md
