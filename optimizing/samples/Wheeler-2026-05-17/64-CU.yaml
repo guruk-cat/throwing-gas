@@ -16,7 +16,7 @@ launch:
   clock_angle: 185.9000 degree
   velocity:
     vector:
-    - 3.0703804569547892 ft/s
+    - 3.070380456954789 ft/s
     - -117.3098679592194 ft/s
     - 2.9672023582140623 ft/s
     statcast: true
@@ -24,3 +24,5 @@ training:
   ax: 8.789706 ft/s**2
   ay: 20.532870 ft/s**2
   az: -40.174506 ft/s**2
+  plate_x: 0.326011 ft
+  plate_z: 2.426191 ft

@@ -18,9 +18,11 @@ launch:
     vector:
     - 6.540656338232619 ft/s
     - -127.02520091787846 ft/s
-    - -2.2037498500907695 ft/s
+    - -2.203749850090769 ft/s
     statcast: true
 training:
   ax: -16.256747 ft/s**2
   ay: 27.404185 ft/s**2
   az: -28.025481 ft/s**2
+  plate_x: -1.753286 ft
+  plate_z: 1.999982 ft
