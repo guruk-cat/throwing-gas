@@ -131,7 +131,7 @@ def compute_single_sim(cfg):
 def check_with_k(k, cfg):
     # Run simulation with Magnus coefficient k
     sim = Simulation()
-    sim.config.mangus_coefficient = Q_(k, k_unit)
+    sim.config.magnus_coefficient = Q_(k, k_unit)
     launch = Configuration()
     launch.configure(cfg['launch'])
     return sim.point_run(launch)
@@ -177,7 +177,8 @@ def main():
             c_squared_sum += numpy.dot(crosses[i], crosses[i])
         delete_lines(1)
     
-    k = r_dot_c_sum / c_squared_sum
+    m = si_mag(Q_(145, 'g'))
+    k = m * r_dot_c_sum / c_squared_sum
     print(f"\nCompute complete. Calculating errors...")
     
     rms_sum = 0

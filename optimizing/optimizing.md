@@ -4,19 +4,21 @@
 
 The physics implemented in `Simulator` calculates the net force acting on the baseball as follows:
 
-$$ F_{net} = F_{gravity} + F_{drag} + F_{spin}$$
+$$ \vec{F}_{net} = \vec{F}_{gravity} + \vec{F}_{drag} + \vec{F}_{spin}$$
 
-where the three force terms express gravity, air drag, and Magnus force caused by the spin of the ball. Because mass can be canceled out in each term, we can express the accleration of the ball as follows:
+where the three force terms express gravity, air drag, and Magnus force caused by the spin of the ball. Each term is defined as follows:
 
-$$ \vec{a} = -g + \alpha |v|^2\hat{v} + \beta \vec{\omega} \times \vec{v} $$
+$$ \vec{F}_{net} = m\vec{g}  - \alpha \cdot |v|^2 \cdot \hat{v} + \beta \cdot \vec{\omega} \times \vec{v}$$
 
-Air drag is proportional to the magnitude of velocity squared, and is in the opposite direction of the velocity. The mangus force is proportional to the cross product of the spin vector (whose direction is defined as the spin axis accoording to the right-hand rule) and the velocity vector.
+Air drag is proportional to the magnitude of velocity squared, and is in the opposite direction of the velocity. The mangus force is proportional to the cross product of the spin vector (whose direction is defined as the spin axis accoording to the right-hand rule) and the velocity vector. $\alpha$ and $\beta$ denote unknown constants that must be empirically determined. Since $\vec{F} = m\vec{a}$, we can express the acceleration of the ball as:
 
-The two constants in the equation, $\alpha$ and $\beta$, have to be empirically determined. The `optimize.py` code exists for this purpose. In the code, the letter *k* is used to denote an unknown constant. In this document, we will assume that $\beta$ is unknown, and will refer to it as the "Magnus term coefficient" or "constant $K$. 
+$$ \vec{a} = -g + \alpha \frac{|v|^2\hat{v}}{m} + \beta \frac{\vec{\omega} \times \vec{v}}{m} $$
+
+The `optimize.py` script exists for determining the unknown constants in this context. In the code, the letter `k` is used to denote an unknown constant. In this document, we will assume that $\beta$ is unknown, and will refer to it as the "Magnus term coefficient" or "constant $K$. 
 
 ## 2. Concept
 
-The optimizer performs a **gradient descent** on a function $f$ of state vector $s$ and constant $k$. Its operation in simple terms is as follows.
+The optimizer performs a **gradient descent** on an error function $E$ of state vector $S$ and constant $K$. Its operation in simple terms is as follows.
 
 We must have a **sample** that includes initial state vector $s_0$ and final state vector $s_1$. In the context of the baseball simulator, these are the vectors that contains the ball's position, velocity, and spin at time $t$. So, we would need a set of datapoints from a ball that is actually thrown and tracked (e.g., Statcast) in order to have the $s_0$ and $s_1$ pairing. Let's say $s_0$ is measured at the release point (ball leaves pitcher's hand) and $s_1$ is measured when it crosses the home plate.
 

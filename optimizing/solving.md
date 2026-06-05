@@ -4,9 +4,9 @@
 
 The predicted acceleration at a measurement point is:
 
-$$\vec{a}_{pred}(K) = \underbrace{-g\hat{z} + \alpha|v|^2\hat{v}}_{\text{K-independent}} + K(\vec{\omega} \times \vec{v})$$
+$$\vec{a}_{pred}(K) = \underbrace{-g\hat{z} + \frac{\alpha|v|^2\hat{v}}{m}}_{\text{K-independent}} + \frac{K}{m}(\vec{\omega} \times \vec{v})$$
 
-Because K enters the equation **linearly**, the mean squared error over any batch of samples is a convex quadratic in K — a parabola opening upward, with exactly one global minimum. Setting its derivative to zero yields a closed-form solution.
+where $m$ is the ball mass. Because K enters the equation **linearly**, the mean squared error over any batch of samples is a convex quadratic in K — a parabola opening upward, with exactly one global minimum. Setting its derivative to zero yields a closed-form solution.
 
 ## 2. Derivation
 
@@ -20,7 +20,7 @@ where $\vec{a}_{base,i}$ is the gravity + drag contribution (independent of $K$)
 
 The squared error for sample $i$ is:
 
-$$E_i(K) = |\vec{r}_i - K\vec{c}_i|^2 = |\vec{r}_i|^2 - 2K(\vec{r}_i \cdot \vec{c}_i) + K^2|\vec{c}_i|^2$$
+$$E_i(K) = \left|\vec{r}_i - \frac{K}{m}\vec{c}_i\right|^2 = |\vec{r}_i|^2 - \frac{2K}{m}(\vec{r}_i \cdot \vec{c}_i) + \frac{K^2}{m^2}|\vec{c}_i|^2$$
 
 The mean squared error over $N$ samples is:
 
@@ -28,20 +28,14 @@ $$E(K) = \frac{1}{N}\sum_{i=1}^{N} E_i(K)$$
 
 Setting $dE/dK = 0$:
 
-$$\sum_{i=1}^{N} \left[ -2(\vec{r}_i \cdot \vec{c}_i) + 2K|\vec{c}_i|^2 \right] = 0$$
+$$\sum_{i=1}^{N} \left[ -\frac{2}{m}(\vec{r}_i \cdot \vec{c}_i) + \frac{2K}{m^2}|\vec{c}_i|^2 \right] = 0$$
 
 Solving for $K$:
 
-$$\boxed{K^* = \frac{\displaystyle\sum_{i=1}^{N} (\vec{r}_i \cdot \vec{c}_i)}{\displaystyle\sum_{i=1}^{N} |\vec{c}_i|^2}}$$
+$$\boxed{K = m \cdot \frac{\displaystyle\sum_{i=1}^{N} (\vec{r}_i \cdot \vec{c}_i)}{\displaystyle\sum_{i=1}^{N} |\vec{c}_i|^2}}$$
 
 This is the unique global minimizer of the mean squared error over the batch.
 
 ## 3. Interpretation
 
 The formula is a one-dimensional linear regression of the true acceleration residual onto the Magnus direction vector $\vec{c}_i$. The numerator is the total "alignment" between the unexplained acceleration and the Magnus direction; the denominator is the total Magnus signal strength across the batch. The ratio gives exactly how much of $K$ is needed to explain the residual.
-
-## 4. Practical Notes
-
-- **$\vec{a}_{base,i}$ is not directly observable.** You still need to run the simulator once per sample at any trial $K_0$ to separate the drag and gravity contributions from the Magnus contribution. But one pass is sufficient — no iteration required.
-- **All samples can be pooled.** Unlike gradient descent, which processes batches sequentially over many epochs, the formula above can take every available sample at once and return the exact answer in a single computation.
-- **No hyperparameters.** Learning rate, epoch count, and convergence thresholds are not needed.
