@@ -85,7 +85,7 @@ The deflection from the baseball's spin is characterized by the Magnus force, wh
 
 $$ \vec{F}_{magnus} = \beta \cdot \vec{\omega} \times \vec{v} $$
 
-where $\beta$ represents a constant that has to be empirically determined. Back in the day, we used data recorded by some older literature to determine $\beta$. The current value, however, has been computed from Statcast trackings. You can find documentations and source codes relating to this topic in `optimizing/`.
+where $\beta$ represents a constant that has to be empirically determined. Back in the day, we used data recorded by some older literature to determine $\beta$. The current value, in contrast, has been computed from Statcast trackings by optimizing the simulator's acceleration prediction against them. You can find documentations and source codes relating to this topic in `optimizing/`.
 
 ### 3.2. Others
 
