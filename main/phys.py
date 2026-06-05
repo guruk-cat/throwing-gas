@@ -25,8 +25,8 @@ _MOUND_HEIGHT_M = 0.254   # standard mound height above field level (10 in)
 # Quick-acess defaults
 DEFAULT_TIME_STEP = Q_(0.5, 'ms')
 DEFAULT_MAGNUS_COEFFICIENT = Q_(6.735553241834e-05, 'kg * s / m') # NEW VALUE!
-# DEFAULT_MAGNUS_COEFFICIENT = Q_(2.2075e-06, 'kg * s / m')
 DEFAULT_DRAG_COEFFICIENT = Q_(0.0007884037809624002, 'kg/m')
+DEFAULT_MAGNUS_MODEL = 'linear velocity'
 
 
 
@@ -114,7 +114,7 @@ class Simulation:
     self.config.wind_direction              = Q_(0, 'degree')
     self.config.drag_coefficient            = DEFAULT_DRAG_COEFFICIENT
     self.config.magnus_coefficient          = DEFAULT_MAGNUS_COEFFICIENT
-    self.config.magnus_model                = 'linear velocity'
+    self.config.magnus_model                = DEFAULT_MAGNUS_MODEL
     self.config.ball_mass                   = Q_(145, 'g')
     self.config.ball_diameter               = Q_(3, 'in')
     self.config.gravitational_acceleration  = Q_(9.8, 'm/s**2')
@@ -326,11 +326,15 @@ class Configuration:
     self.spin_axis   = xhat.copy()         # unit vector in pitch-frame coordinates
     self.clock_angle = Q_(0, 'degree')
 
+    # Magnus model (must match Simulation.config.magnus_model for velo_correction)
+    self.magnus_model = DEFAULT_MAGNUS_MODEL
+
   def configure(self, config):
     config_keys_used = []
 
     for key, attr, parser in [
       ('handedness',    'handedness',    lambda v: v),
+      ('magnus_model',  'magnus_model',  lambda v: v),
       ('arm_slot',      'arm_slot',      _parse_quantity),
       ('arm_extension', 'arm_extension', _parse_quantity),
       ('arm_length',    'arm_length',    _parse_quantity),
@@ -441,7 +445,12 @@ class Configuration:
     a = numpy.zeros(3)
     a -= 9.8 * zhat
     a -= (Cd / m) * speed * v50_ms
-    a += (Cm / m) * speed * numpy.cross(w, v50_ms)
+    if self.magnus_model == 'squared velocity':
+      a += (Cm / m) * speed * numpy.cross(w, v50_ms)
+    elif self.magnus_model == 'linear velocity':
+      a += (Cm / m) * numpy.cross(w, v50_ms)
+    else:
+      raise ValueError(f"Unrecognized magnus model '{self.magnus_model}'")
 
     release_world, _, _ = self._resolve_geometry()
     s_y = Q_(50, 'ft').to('m').magnitude - release_world[1]

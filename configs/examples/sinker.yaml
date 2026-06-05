@@ -10,8 +10,8 @@ launch:
 
   speed:       "97 mph"
   spin:        "2100 rpm"
-  spin_axis:   [0, 0, -1]
-  clock_angle: "25 degree"
+  spin_axis:   [-1, 0, 0]
+  clock_angle: "-30 degree"
 
   velocity:
-    target: ["0.3 m", "0 m", "1.7 m"]
+    target: ["0.3 m", "0 m", "1.4 m"]
