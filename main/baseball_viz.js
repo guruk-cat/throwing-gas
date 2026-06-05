@@ -394,13 +394,36 @@
   timeLabel.style.width = '90px';
   ui.appendChild(timeLabel);
 
+  const speedSelect = document.createElement('select');
+  speedSelect.style.cssText = 'padding:4px 6px;border:1px solid #666;background:#222;color:#eee;border-radius:4px;cursor:pointer;font-family:monospace;';
+  [['1x', 1], ['0.75x', 0.75], ['0.5x', 0.5], ['0.25x', 0.25]].forEach(([label, val]) => {
+    const opt = document.createElement('option');
+    opt.value = val;
+    opt.textContent = label;
+    speedSelect.appendChild(opt);
+  });
+  ui.insertBefore(speedSelect, slider);
+
+  let speed = 1;
+  speedSelect.addEventListener('change', () => {
+    const wasPlaying = playing;
+    if (wasPlaying) {
+      playing = false;
+    }
+    speed = parseFloat(speedSelect.value);
+    if (wasPlaying) {
+      startTime = performance.now() - (frameIndex / fps / speed) * 1000;
+      playing = true;
+    }
+  });
+
   playBtn.addEventListener('click', () => {
     if (playing) {
       playing = false;
       playBtn.textContent = 'Play';
     } else {
       if (frameIndex >= maxFrames - 1) setFrame(0);
-      startTime = performance.now() - (frameIndex / fps) * 1000;
+      startTime = performance.now() - (frameIndex / fps / speed) * 1000;
       playing = true;
       playBtn.textContent = 'Pause';
     }
@@ -417,7 +440,7 @@
   function animate(ts) {
     requestAnimationFrame(animate);
     if (playing) {
-      const i = Math.floor((ts - startTime) / 1000 * fps);
+      const i = Math.floor((ts - startTime) / 1000 * fps * speed);
       if (i >= maxFrames) {
         playing = false;
         playBtn.textContent = 'Play';
