@@ -114,6 +114,7 @@ def compute_single_sim(cfg):
     # Run simulation with Magnus term = 0.
     sim = Simulation()
     sim.config.magnus_coefficient = Q_(0, k_unit)
+    sim.config.magnus_model = 'linear velocity'
     launch = Configuration()
     launch.configure(cfg['launch'])
 

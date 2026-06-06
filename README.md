@@ -14,7 +14,7 @@ Studies are being conducted to improve the accuracy of the simulations. Other st
 
 * [Back-computing initial velocity from Statcast](studies/init-v/back-computing-v.md)
 * [What makes a fastball fast? (Other than yanking it as hard as one can.)](studies/fastballs/fastballs.md)
-* [Discrepancy Between Optimizer and Closed Solution](optimizing/discrepancy.md)
+* [Results from optimizer and analytic solution for constant $K$](optimizing/k-results.md)
 
 ### 1.2. Authors and History
 

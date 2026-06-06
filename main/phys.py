@@ -24,7 +24,7 @@ _MOUND_HEIGHT_M = 0.254   # standard mound height above field level (10 in)
 
 # Quick-acess defaults
 DEFAULT_TIME_STEP = Q_(0.5, 'ms')
-DEFAULT_MAGNUS_COEFFICIENT = Q_(6.735553241834e-05, 'kg * s / m') # NEW VALUE!
+DEFAULT_MAGNUS_COEFFICIENT = Q_(6.749586978411e-05, 'kg * s / m') # NEW VALUE!
 DEFAULT_DRAG_COEFFICIENT = Q_(0.0007884037809624002, 'kg/m')
 DEFAULT_MAGNUS_MODEL = 'linear velocity'
 
