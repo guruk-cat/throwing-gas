@@ -10,4 +10,4 @@ where the empirically determined constant $\beta$ absorbs all information tradit
 
 # 2. Approach
 
-We can keep $\beta$ as a constant within the force equation used in the simulator. But during configuration, we can make $\beta$ a function of temperature and altitude. As to how exactly this function will be configured, I'm not sure. As to the ratios or powers with which temperature and altitude will enter the equation, that can be baked into the error calculation that's used by the constant $K$ optimizer; and we run it against Statcast trackings to determine their values.
+We can keep $\beta$ as a constant within the force equation used in the simulator. But during configuration, we can make $\beta$ a function of temperature and altitude.
