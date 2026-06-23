@@ -200,7 +200,7 @@ def search_statcast(inject=None):
 
 
 
-# FETCH FROM A LIST
+# FETCH FROM A LIST CONFIG
 
 def fetch_only(inject=None):
     title = "Fetch from a list"

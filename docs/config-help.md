@@ -1,6 +1,8 @@
 # Configuration Reference
 
-A config file is a YAML document with up to four top-level blocks: `launch` (required), `scene` (optional), `simulation` (optional), and `training` (optional). All physical quantities are strings parsed by `pint` — units can be in any compatible form (e.g. `"97 mph"`, `"43.3 m/s"`).
+A pitch config file is a YAML document that configures a single pitch. It has up to four top-level blocks: `launch` (required), `scene` (optional), `simulation` (optional), and `training` (optional). All physical quantities are strings parsed by `pint`, and units can be in any compatible form (e.g. `"97 mph"`, `"43.3 m/s"`).
+
+A "pitch config" file is different from a "list config" file, which is used for producing batches of multiple pitch configs. See [CLI help](./cli-help.md) for details on the latter.
 
 ## 1. `launch`
 

@@ -4,15 +4,22 @@ This doc pertains to the `command.py` script, which is a CLI wrapper around `sta
 
 ## Option A: Search and Select
 
-This is the easiest to use if you're unsure as to what you want to try out. It'll ask for a pitcher name and a game date. Then, it'll have you select the pitches thrown by that pitcher on that day. You get to see a list of the details (pitch count, pitch type, S-B count, etc.) before making your selection. This will generate a folder within `configs/` named after the pitcher and the date. Inside it, you'll see individual YAML files for each pitch that was fetched and selected.
+This is the easier option to use if you're unsure as to what you want to try out. The order of operations goes like this:
 
-## Option B: Generate from a YAML list
+1. It'll ask for a pitcher name and a game date. You may want to browse your favorite pitcher's Savant profile to pick a game. 
+2. Then, the script will show you a list of the pitches thrown by that pitcher on that day: pitch count, pitch type, S-B count, result, etc. 
+3. And you make your selection, by specifying pitch count numbers, by giving a range, or by selecting all.
+4. This will generate a folder within `configs/` named after the pitcher and the date. Inside it, you'll see individual YAML files for each pitch that was fetched and selected.
+
+## Option B: Generate from a YAML list config
 
 This is useful if you are fetching from multiple different games. The only time I use this (and the reason why I made it) is for producing sample batches for the coefficient optimizers. (See `legacy/` for the older ones and `coefficients/` for the newer one.) You point to a YAML file that hosts a list of pitcher/date entries, which would look something like this:
 
 ```yaml
-- pitcher: Gerrit Cole
-  date: 2024-04-01
-- pitcher: Blake Snell
-  date: 2024-05-02
+- pitcher: John Doe
+  date: 2026-06-01
+- pitcher: Tom Hanks
+  date: 2026-05-01
 ```
+
+Again, for each batch (that is, a pitcher's game on a given date), one or more *pitch configs* are generated. The *list config* as described above is for generating batches of such pitch configs.
