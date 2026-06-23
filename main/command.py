@@ -230,6 +230,7 @@ def fetch_only(inject=None):
 
     # Run once for the entire request
     include_scene = yes_or_no("Fetch and include weather info?")
+    consolidate_output = yes_or_no("Consolidate output into one folder?")
 
     results_saved = []
     for i, batch in enumerate(batches, 1):
@@ -246,7 +247,14 @@ def fetch_only(inject=None):
             print(f"  Skipping {pitcher} on {date}: {e}")
             continue
         height = resolve_height(df)
+
+        # TODO: if consolidate_output == True, use a single out_dir for all outputs,
+        #       instead of different dir by pitcher/game
         out_dir = out_dir_for(df, config_parent)
+
+        # TODO: include an optional `range` entry in the list config yaml
+        #       instead of using the whole batch every time. Default to whole
+        #       batch if entry not present.
         saved_pitches = write_configs(df, range(len(df)), height, include_scene, out_dir)
         results_saved.append((saved_pitches, pitcher))
 

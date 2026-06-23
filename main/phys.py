@@ -24,9 +24,9 @@ _MOUND_HEIGHT_M = 0.254   # standard mound height above field level (10 in)
 
 # Quick-acess defaults
 DEFAULT_TIME_STEP = Q_(0.5, 'ms')
-DEFAULT_MAGNUS_COEFFICIENT = Q_(6.749586978411e-05, 'kg * s / m') # NEW VALUE!
+DEFAULT_MAGNUS_COEFFICIENT = Q_(6.749586978411e-05, 'kg * s / m')
 DEFAULT_DRAG_COEFFICIENT = Q_(0.0007884037809624002, 'kg/m')
-DEFAULT_MAGNUS_MODEL = 'linear velocity'
+DEFAULT_MAGNUS_MODEL = 'squared velocity'
 
 
 
@@ -110,14 +110,18 @@ def build_pitch_frame(release_world, arm_dir):
 class Simulation:
   def __init__(self):
     self.config = types.SimpleNamespace()
+
     self.config.wind_speed                  = Q_(0, 'mph')
     self.config.wind_direction              = Q_(0, 'degree')
+
     self.config.drag_coefficient            = DEFAULT_DRAG_COEFFICIENT
     self.config.magnus_coefficient          = DEFAULT_MAGNUS_COEFFICIENT
     self.config.magnus_model                = DEFAULT_MAGNUS_MODEL
+    
     self.config.ball_mass                   = Q_(145, 'g')
     self.config.ball_diameter               = Q_(3, 'in')
     self.config.gravitational_acceleration  = Q_(9.8, 'm/s**2')
+
     self.config.time_step                   = DEFAULT_TIME_STEP
     self.config.time_step_growth_rate       = Q_(1, '')
     self.config.error_tolerance             = Q_(0.1, 'percent')
@@ -181,6 +185,8 @@ class Simulation:
     return 10
 
   def derivative(self, state):
+    # TODO: Include air density rho in drag and magnus calculations
+
     dsdt = numpy.zeros(self.state_size)
 
     dsdt[0]   = 1           # dt/dt = 1
@@ -301,6 +307,9 @@ class Simulation:
 
 
 class Configuration:
+  # TODO: Air density self variable (rho)
+  #       and a private function that calculates rho from temp, pressure, and humidity
+
   def __init__(self):
     # Arm geometry parameters
     self.handedness    = 'right'
