@@ -5,7 +5,8 @@ import yaml
 import requests
 from time import sleep
 
-sys.path.insert(0, str(pathlib.Path(__file__).parent))
+# Repo root
+sys.path.insert(0, str(pathlib.Path(__file__).parent.parent))
 
 from statcast_to_config import fetch_pitcher_height, fetch_pitches, pitch_to_config, print_pitch_list
 from config_io import clear_cli, exit_cli, user_input, delete_lines, simple_question, yes_or_no
@@ -127,8 +128,7 @@ def after_pitch_list(df):
     ])
     menu.run_menu(new_page=False)
 
-def build_chain(df, pitches):
-    clear_cli()
+def resolve_height(df):
     try:
         height = fetch_pitcher_height(int(df.iloc[0]['pitcher']))
         print("Fetched pitcher height from MLBAM...")
@@ -138,16 +138,18 @@ def build_chain(df, pitches):
         print("\nCould not fetch pitcher's height from the web...")
         height = simple_question("Please enter manually: ")
         delete_lines(1)
-    
-    include_scene = yes_or_no("Fetch and include weather info?")
+    return height
 
+def out_dir_for(df):
     raw_name = str(df.iloc[0]['player_name'])
     pitcher_slug = raw_name.split(',')[0].strip().replace(' ', '-')
     date_slug = str(df.iloc[0]['game_date'])[:10]
     out_dir = pathlib.Path(__file__).parent.parent / "configs" / f"{pitcher_slug}-{date_slug}"
     out_dir.mkdir(parents=True, exist_ok=True)
+    return out_dir
 
-    saved = 0
+def write_configs(df, pitches, height, include_scene, out_dir):
+    saved_pitches = 0
     for i in pitches:
         row = df.iloc[i]
         try:
@@ -159,7 +161,15 @@ def build_chain(df, pitches):
         filename = f"{i + 1}-{pitch_type}.yaml"
         yaml_str = yaml.dump(config, default_flow_style=False, sort_keys=False, allow_unicode=True)
         (out_dir / filename).write_text(yaml_str)
-        saved += 1
+        saved_pitches += 1
+    return saved_pitches
+
+def build_chain(df, pitches):
+    clear_cli()
+    height = resolve_height(df)
+    include_scene = yes_or_no("Fetch and include weather info?")
+    out_dir = out_dir_for(df)
+    saved = write_configs(df, pitches, height, include_scene, out_dir)
 
     clear_cli()
     print(f"\nSaved {saved} config(s) to {out_dir}")
@@ -190,6 +200,62 @@ def search_statcast(inject=None):
 
 
 
+# FETCH FROM A LIST
+
+def fetch_only(inject=None):
+    title = "Fetch from a list"
+    description =   "  A YAML-style list of pitcher/date combos are supported.\n" \
+                    "  See cli-help.md in docs."
+
+    clear_cli()
+    if inject is None:
+        print(f"\n{title.upper()}")
+    else:
+        print(inject)
+        print(f"{title.upper()}")
+    print(description)
+
+    config_path = simple_question(f"  Root path is set to: {sys.path[0]}\n  Enter relative path to file...")
+    config_path = pathlib.Path(sys.path[0]) / config_path.strip()
+    try:
+        batches = yaml.safe_load(config_path.read_text())
+    except (OSError, yaml.YAMLError) as e:
+        fetch_only(inject=f"Could not read config file: {e}")
+        return
+
+    if not isinstance(batches, list) or not batches:
+        fetch_only(inject="Config file must be a non-empty list of pitcher names and dates.")
+        return
+
+    # Run once for the entire request
+    include_scene = yes_or_no("Fetch and include weather info?")
+
+    results = []
+    for batch in batches:
+        try:
+            pitcher, date = batch['pitcher'], batch['date']
+        except (TypeError, KeyError):
+            print(f"  Skipping malformed batch (need 'pitcher' and 'date'): {batch!r}")
+            continue
+        try:
+            df = fetch_pitches(pitcher, date)
+        except ValueError as e:
+            print(f"  Skipping {pitcher} on {date}: {e}")
+            continue
+        height = resolve_height(df)
+        out_dir = out_dir_for(df)
+        saved_pitches = write_configs(df, range(len(df)), height, include_scene, out_dir)
+        results.append((out_dir, saved_pitches))
+
+    clear_cli()
+    print(f"\nProcessed {len(results)} batches:")
+    for out_dir, saved in results:
+        print(f"  {saved} config(s) -> {out_dir}")
+    print("\nPress ENTER to return to the main menu")
+    user_input()
+
+
+
 # TRAINING DATA TOGGLE
 
 def toggle_training_data():
@@ -208,6 +274,7 @@ options = Menu("Options",[
 
 main_menu = Menu("Start with data from Statcast", [
     ("Search and select", search_statcast),
+    ("Fetch from a configurated list", fetch_only),
     (options.title, options),
     ("Exit", exit_cli)
 ], suppress_back_key=True)
