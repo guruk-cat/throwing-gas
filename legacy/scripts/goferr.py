@@ -11,7 +11,7 @@ import os
 
 sys.path.insert(0, str(pathlib.Path(__file__).parent.parent / 'main'))
 from phys import Simulation, Configuration
-from optimizing.scripts.optimize import load_configs, select_batches
+from legacy.scripts.optimize import load_configs, select_batches
 
 ureg = pint.UnitRegistry()
 Q_ = ureg.Quantity  # type: ignore[misc]

@@ -7,12 +7,12 @@ import yaml
 sys.path.insert(0, str(pathlib.Path(__file__).parent))
 
 from statcast_to_config import fetch_pitches, pitch_to_config, print_pitch_list
+from config_io import clear_cli, exit_cli, user_input, delete_lines, simple_question, yes_or_no
+
 
 
 # Run with options
-
 include_training_data = False
-
 SETTINGS_PATH = pathlib.Path(__file__).parent / "command_settings.json"
 
 def load_settings():
@@ -25,56 +25,6 @@ def save_settings():
     SETTINGS_PATH.write_text(json.dumps({"include_training_data": include_training_data}))
 
 
-# CLI helpers
-
-def clear_cli():
-    os.system('cls' if os.name == 'nt' else 'clear')
-
-def exit_cli():
-    clear_cli()
-    print("Goodbye!")
-    sys.exit()
-
-def user_input():
-    u = input("\n\n\n> ").strip()
-    return u
-
-def delete_lines(n):
-    for _ in range(n):
-        # \033[F moves cursor up one line; \033[K clears that line
-        sys.stdout.write("\033[F\033[K")
-
-def simple_question(question):
-    lines = 0
-    def p(s=''):
-        nonlocal lines
-        print(s)
-        lines += s.count('\n') + 1   # +1 for the newline print() always appends
-
-    p(f"\n{question}")
-    u = user_input()
-    lines += 4
-    delete_lines(lines)
-    return u
-
-def yes_or_no(question):
-    lines = 0
-    def p(s=''):
-        nonlocal lines
-        print(s)
-        lines += s.count('\n') + 1
-    
-    p(f"{question} [y/n]")
-    u = user_input()
-    lines += 4
-
-    if u == "y" or u == "Y":
-        return True
-    elif u == "n" or u == "N":
-        return False
-    else:
-        delete_lines(lines)
-        yes_or_no("Dammit, the question was simple. "+question)
 
 class Menu:
     def __init__(self, title, items, suppress_back_key=False):
