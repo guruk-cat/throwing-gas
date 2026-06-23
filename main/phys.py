@@ -64,7 +64,7 @@ def si_mag(quant):
   # Strip pint quantity to its SI base-unit magnitude.
   return quant.to_base_units().magnitude
 
-def _parse_quantity(s):
+def parse_quantity(s):
   # Handle "X ft Y in" compound format not natively supported by pint.
   # Plain numbers default to metres.
   if isinstance(s, (int, float)):
@@ -335,12 +335,12 @@ class Configuration:
     for key, attr, parser in [
       ('handedness',    'handedness',    lambda v: v),
       ('magnus_model',  'magnus_model',  lambda v: v),
-      ('arm_slot',      'arm_slot',      _parse_quantity),
-      ('arm_extension', 'arm_extension', _parse_quantity),
-      ('arm_length',    'arm_length',    _parse_quantity),
-      ('speed',         'speed',         _parse_quantity),
-      ('spin',          'spin',          _parse_quantity),
-      ('clock_angle',   'clock_angle',   _parse_quantity),
+      ('arm_slot',      'arm_slot',      parse_quantity),
+      ('arm_extension', 'arm_extension', parse_quantity),
+      ('arm_length',    'arm_length',    parse_quantity),
+      ('speed',         'speed',         parse_quantity),
+      ('spin',          'spin',          parse_quantity),
+      ('clock_angle',   'clock_angle',   parse_quantity),
     ]:
       if key in config:
         setattr(self, attr, parser(config[key]))
@@ -351,15 +351,15 @@ class Configuration:
       config_keys_used.append('position')
       if 'height' not in pos:
         raise ValueError("'position.height' is required.")
-      self.height = _parse_quantity(pos['height'])
+      self.height = parse_quantity(pos['height'])
       if 'release_pos' in pos:
         rp = pos['release_pos']
         units = Q_(rp[0]).units
         self.release_pos = units * numpy.array([Q_(v).to(units).magnitude for v in rp])
       if 'rubber' in pos:
         r = pos['rubber']
-        self.rubber = numpy.array([_parse_quantity(r[0]).to('m').magnitude,
-                                   _parse_quantity(r[1]).to('m').magnitude])
+        self.rubber = numpy.array([parse_quantity(r[0]).to('m').magnitude,
+                                   parse_quantity(r[1]).to('m').magnitude])
 
     if 'velocity' in config:
       vel = config['velocity']
@@ -368,7 +368,7 @@ class Configuration:
         self.velocity_is_statcast = bool(vel['statcast'])
       if 'target' in vel:
         t = vel['target']
-        self.aim_target      = numpy.array([_parse_quantity(v).to('m').magnitude for v in t])
+        self.aim_target      = numpy.array([parse_quantity(v).to('m').magnitude for v in t])
         self.velocity_vector = None
       elif 'vector' in vel:
         v = vel['vector']

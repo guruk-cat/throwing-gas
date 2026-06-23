@@ -1,12 +1,12 @@
 # Configuration Reference
 
-A config file is a YAML document with up to three top-level blocks: `launch` (required), `simulation` (optional), and `training` (optional). All physical quantities are strings parsed by `pint` — units can be in any compatible form (e.g. `"97 mph"`, `"43.3 m/s"`).
+A config file is a YAML document with up to four top-level blocks: `launch` (required), `scene` (optional), `simulation` (optional), and `training` (optional). All physical quantities are strings parsed by `pint` — units can be in any compatible form (e.g. `"97 mph"`, `"43.3 m/s"`).
 
-## `launch`
+## 1. `launch`
 
 Configures the initial state of the ball.
 
-### Arm geometry
+### 1.1. Arm geometry
 
 `handedness` and `arm_slot` are required. `arm_extension` and `arm_length` are optional with sensible defaults.
 
@@ -19,7 +19,7 @@ All four keys feed into `arm_dir`, which is used everywhere: back-computing shou
 | `arm_extension` | quantity (length) | derived | Forward lean of the arm from shoulder toward the plate at release. If omitted, estimated as `0.082 * height` (~15 cm for a 182 cm pitcher). |
 | `arm_length` | quantity (length) | derived | Explicit arm length. If omitted, estimated as `0.37 * height`. |
 
-### Position
+### 1.2. Position
 
 `position.height` is the pitcher's height, and is always required — it is used to derive `arm_length` (unless overridden explicitly), which is needed to back-compute the shoulder position regardless of how the release point is provided.
 
@@ -34,7 +34,7 @@ position:
 
 `rubber` defaults to `[0 m, 18.44 m]` if omitted.
 
-### Velocity
+### 1.3. Velocity
 
 `speed` controls the magnitude. `velocity` controls the direction. Both are required unless `velocity.vector` is provided without `speed`, in which case the magnitude is taken from the vector norm.
 
@@ -44,7 +44,7 @@ position:
 
 Provide exactly one of these two options under `velocity`:
 
-**Option A (direct velocity vector):**
+#### Option A (direct velocity vector)
 
 ```yaml
 velocity:
@@ -61,14 +61,14 @@ velocity:
 
 `statcast_to_config.py` sets this flag automatically. Manual configs that use a directly-measured release velocity should leave it out (or set it to `false`).
 
-**Option B (aim initial velo at a world-frame point):**
+#### Option B (aim initial velo at a world-frame point)
 
 ```yaml
 velocity:
   target: ["0.3 m", "0 m", "1.7 m"]   # world-frame [x, y, z]
 ```
 
-### Spin
+### 1.4. Spin
 
 | Key | Type | Default | Description |
 |---|---|---|---|
@@ -85,7 +85,17 @@ Common `spin_axis` values (pitch frame, righty pitcher):
 | `[0, 0, -1]` | Arm-side sidespin (sinker/two-seam) |
 | `[0, 0, 1]` | Glove-side sidespin (cut fastball) |
 
-## `simulation`
+## 2. `scene`
+
+Optional block describing the environmental conditions at the ballpark. Written by `statcast_to_config.py` / `command.py` when weather lookup is enabled; inferred from the home team (ballpark coordinates) and first-pitch time, with conditions fetched from the [Open-Meteo](https://open-meteo.com/) historical archive.
+
+| Key | Type | Description |
+|---|---|---|
+| `temperature` | quantity (temperature) | Air temperature at first pitch. Open-Meteo reports °C (e.g. `"13.3 degC"`). |
+| `pressure` | quantity (pressure) | Surface pressure at first pitch, in hPa (e.g. `"1011.0 hPa"`). Already reflects ballpark altitude. |
+| `humidity` | quantity | Relative humidity at first pitch, as a percentage (e.g. `"77 percent"`). |
+
+## 3. `simulation`
 
 All keys are optional. Omitted keys keep their defaults.
 
@@ -104,7 +114,7 @@ All keys are optional. Omitted keys keep their defaults.
 | `wind_speed` | `0 mph` | Not yet implemented in force calculations; reserved. |
 | `wind_direction` | `0 degree` | Not yet implemented; reserved. |
 
-## `training`
+## 4. `training`
 
 Optional block written by `statcast_to_config.py --training` or the `command.py` CLI tool when selecting the appropriate option. Stores the ground-truth plate crossing position from Statcast, used by the optimizer as the target output (s₂) for a pitch.
 
@@ -125,7 +135,7 @@ This block can also contain `plate_x` and `plate_z` from Statcast data. These ar
 
 The block is not read by `launch.py` or `Simulation` — ignored outside the optimizer.
 
-## Full example
+## 4. Full example
 
 ```yaml
 launch:

@@ -1,12 +1,13 @@
 import json
 import pathlib
 import sys
-import os
 import yaml
+import requests
+from time import sleep
 
 sys.path.insert(0, str(pathlib.Path(__file__).parent))
 
-from statcast_to_config import fetch_pitches, pitch_to_config, print_pitch_list
+from statcast_to_config import fetch_pitcher_height, fetch_pitches, pitch_to_config, print_pitch_list
 from config_io import clear_cli, exit_cli, user_input, delete_lines, simple_question, yes_or_no
 
 
@@ -25,7 +26,7 @@ def save_settings():
     SETTINGS_PATH.write_text(json.dumps({"include_training_data": include_training_data}))
 
 
-
+# CLI menu
 class Menu:
     def __init__(self, title, items, suppress_back_key=False):
         # title : STR
@@ -107,16 +108,16 @@ def select_pitches():
         delete_lines(8)
         return None
 
-def menu_after_pitch_print(df):
+def after_pitch_list(df):
     def select_and_build():
         pitches = select_pitches()
         if pitches is None:
-            menu_after_pitch_print(df)
+            after_pitch_list(df)
             return
         pitches = [i - 1 for i in pitches]
         in_range = all(0 <= i < len(df) for i in pitches)
         if in_range:
-            menu_build_config(df, pitches)
+            build_chain(df, pitches)
         else:
             pass  # TO-DO: handle out-of-range
 
@@ -126,13 +127,19 @@ def menu_after_pitch_print(df):
     ])
     menu.run_menu(new_page=False)
 
-def menu_build_config(df, pitches):
+def build_chain(df, pitches):
     clear_cli()
-    height = simple_question("\nEnter pitcher height (e.g. \"6 ft 2 in\")...")
-    # clear_cli()
-    # arm_slot_str = simple_question("\nEnter arm slot override in degrees, or leave blank to use Statcast data...")
-    # arm_slot = float(arm_slot_str) if arm_slot_str else None
-    arm_slot = None # disable arm slot override
+    try:
+        height = fetch_pitcher_height(int(df.iloc[0]['pitcher']))
+        print("Fetched pitcher height from MLBAM...")
+        sleep(1)
+        delete_lines(1)
+    except requests.RequestException:
+        print("\nCould not fetch pitcher's height from the web...")
+        height = simple_question("Please enter manually: ")
+        delete_lines(1)
+    
+    include_scene = yes_or_no("Fetch and include weather info?")
 
     raw_name = str(df.iloc[0]['player_name'])
     pitcher_slug = raw_name.split(',')[0].strip().replace(' ', '-')
@@ -144,7 +151,7 @@ def menu_build_config(df, pitches):
     for i in pitches:
         row = df.iloc[i]
         try:
-            config = pitch_to_config(row, height, arm_slot, include_training=include_training_data)
+            config = pitch_to_config(row, height, include_training=include_training_data, include_scene=include_scene)
         except ValueError as e:
             print(f"  Skipping pitch #{i + 1}: {e}")
             continue
@@ -159,7 +166,7 @@ def menu_build_config(df, pitches):
     print("Press ENTER to return to the main menu")
     user_input()
 
-def search_statcast(inject=None, fetch_only=False):
+def search_statcast(inject=None):
     title = "Fetch from the Statcast database"
     clear_cli()
     if inject is None:
@@ -178,23 +185,12 @@ def search_statcast(inject=None, fetch_only=False):
         search_statcast(inject=str(e))
         return
     
-    if fetch_only == False:
-        print_pitch_list(df, pitcher)
-        menu_after_pitch_print(df)
-    else:
-        pitches = select_pitches()
-        if pitches is None:
-            return
-    
-        pitches = [i - 1 for i in pitches]   # start at 0
-        in_range = all(0 <= i < len(df) for i in pitches)
-        if in_range:
-            menu_build_config(df, pitches)
-        else:
-            pass
+    print_pitch_list(df, pitcher)
+    after_pitch_list(df)
 
-def fetch_and_go():
-    search_statcast(fetch_only=True)
+
+
+# TRAINING DATA TOGGLE
 
 def toggle_training_data():
     global include_training_data
@@ -206,19 +202,20 @@ options = Menu("Options",[
     (lambda: f"Include training data in output  [{'ON' if include_training_data else 'OFF'}]", toggle_training_data)
 ])
 
-statcast_menu = Menu("Start with data from Statcast", [
+
+
+# MAIN MENU
+
+main_menu = Menu("Start with data from Statcast", [
     ("Search and select", search_statcast),
-    ("Fetch only\n     (use this if you already know specific pitch count numbers)", fetch_and_go),
     (options.title, options),
     ("Exit", exit_cli)
 ], suppress_back_key=True)
 
-
-
 def main():
     load_settings()
     while True:
-        statcast_menu.run_menu()
+        main_menu.run_menu()
 
 if __name__ == '__main__':
     main()
