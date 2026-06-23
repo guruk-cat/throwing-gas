@@ -10,11 +10,13 @@ This is a baseball pitch simulator. The repo contains a physics simulator, confi
 * Import data from Statcast to compare, modify, and play with pitches actually thrown in the MLB.
 * Create imaginary pitcher profiles or test "what if" scenarios.
 
-Studies are being conducted to improve the accuracy of the simulations. Other studies focus on better understanding pitch types. A simple CLI tool has been built for utilizing Statcast, and more work is to come. For the latest work undertaken, see the following:
+Studies are being conducted to improve the accuracy of the simulations. Other studies focus on better understanding pitch types. A simple CLI tool has been built for utilizing Statcast, and more work is to come. For the latest ongoing work, see [new coefficient modeling](optimizing/new-magnus.md).
+
+Here are some works that were completed earlier:
 
 * [Back-computing initial velocity from Statcast](studies/init-v/back-computing-v.md)
 * [What makes a fastball fast? (Other than yanking it as hard as one can.)](studies/fastballs/fastballs.md)
-* [Results from optimizer and analytic solution for constant $K$](optimizing/k-results.md)
+* [Results from optimizer and analytic solution for constant $K$](optimizing/docs/k-results.md)
 
 ### 1.2. Authors and History
 
@@ -85,22 +87,8 @@ The deflection from the baseball's spin is characterized by the Magnus force, wh
 
 $$ \vec{F}_{magnus} = \beta \cdot \vec{\omega} \times \vec{v} $$
 
-where $\beta$ represents a constant that has to be empirically determined. Back in the day, we used data recorded by some older literature to determine $\beta$. The current value, in contrast, has been computed from Statcast trackings by optimizing the simulator's acceleration prediction against them. You can find documentations and source codes relating to this topic in `optimizing/`.
+where $\beta$ represents a constant that has to be empirically determined. Back in the day, we used data recorded by some older literature to determine $\beta$. The current value, in contrast, has been computed from Statcast trackings by optimizing the simulator's acceleration prediction against them. There are additional studies being done to make the model more accurate. You can find documentations and source codes relating to this topic in `optimizing/`.
 
 ### 3.2. Others
 
 Other studies are included in `studies/`, separated into subdirectories by topic. Some of them are concerned with improving the precision and accuracy of the simulations and Statcast-based configurations. Others have more to do with understanding different pitch types and why they appear the way they do.
-
-## 4. Physics
-
-### 4.1. Force Equation
-
-The physics implemented in `phys.Simulator` essentially computes, at every time interval $t$, the following set of forces acting on the baseball:
-
-$$ \vec{F}_{net} = -mg - \alpha \cdot |\vec{v}|^2 \cdot \hat{v} + \beta \cdot \vec{\omega} \times \vec{v}$$
-
-The three terms express, in respective order: gravity, air drag, and Magnus force. Because we are only working with a single, very specific object (i.e., a baseball) and because we are working within a limited context (i.e., the baseball flying roughly at 80~105 mph for less than half a second), we can afford to have coefficients $\alpha$ and $\beta$ absorb information that is traditionally expressed separately, such as air density and reference area. Again, the downside of this is that we can't account for ballpark-specific or time-specific air conditions, but I don't know how I'd find data on that anyways.
-
-### 4.2. Approximation and Precision
-
-I'll write this later.

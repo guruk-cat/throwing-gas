@@ -8,7 +8,7 @@ import yaml
 import os
 import time
 
-sys.path.insert(0, str(pathlib.Path(__file__).parent.parent / 'main'))
+sys.path.insert(0, str(pathlib.Path(__file__).parent.parent.parent / 'main'))
 from phys import Simulation, Configuration
 
 
@@ -88,7 +88,7 @@ def extract_true_acc(cfgs):
     return numpy.array(result)
 
 def select_batches():
-    samples_dir = pathlib.Path(__file__).parent / 'samples'
+    samples_dir = pathlib.Path(__file__).parent.parent / 'samples'
     all_batches = sorted([d for d in samples_dir.iterdir() if d.is_dir()])
 
     if not all_batches:
@@ -250,6 +250,10 @@ def main():
         print(f"\n--- Epoch {epoch}/{args.epochs} ---")
         rms_sum = 0
         dk_sum = 0
+
+        if epoch % 10 == 0:
+            lr = calibrate_learning_rate(batches, k, init_step_fraction)
+
         for batch_name, cfgs, true_acc in batches:
             k, rms_err, dk = gradient_step(cfgs, true_acc, k, lr, batch_name)
             # print(f"  [{batch_name:<{name_w}}]  K={k:.4e} ({k_unit})  RMS={rms_err:.4f} (m/s²)  Mean dK={dk:.4e} ({k_unit})")
