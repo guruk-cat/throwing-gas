@@ -22,4 +22,6 @@ This is useful if you are fetching from multiple different games. The only time 
   date: 2026-05-01
 ```
 
-Again, for each batch (that is, a pitcher's game on a given date), one or more *pitch configs* are generated. The *list config* as described above is for generating batches of such pitch configs.
+For each batch (that is, a pitcher's game on a given date), one or more *pitch configs* are generated. The *list config* as described above is for generating batches of such pitch configs.
+
+Unlike Option A, with this method the output is written to the parent directory of the list config file.

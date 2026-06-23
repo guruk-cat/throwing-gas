@@ -3,10 +3,10 @@ import pathlib
 import sys
 import yaml
 import requests
-from time import sleep
 
 # Repo root
 sys.path.insert(0, str(pathlib.Path(__file__).parent.parent))
+DEFAULT_OUT = pathlib.Path(__file__).parent.parent / "configs"
 
 from statcast_to_config import fetch_pitcher_height, fetch_pitches, pitch_to_config, print_pitch_list
 from config_io import clear_cli, exit_cli, user_input, delete_lines, simple_question, yes_or_no
@@ -115,6 +115,7 @@ def after_pitch_list(df):
         if pitches is None:
             after_pitch_list(df)
             return
+        clear_cli()
         pitches = [i - 1 for i in pitches]
         in_range = all(0 <= i < len(df) for i in pitches)
         if in_range:
@@ -131,20 +132,17 @@ def after_pitch_list(df):
 def resolve_height(df):
     try:
         height = fetch_pitcher_height(int(df.iloc[0]['pitcher']))
-        print("Fetched pitcher height from MLBAM...")
-        sleep(1)
-        delete_lines(1)
     except requests.RequestException:
         print("\nCould not fetch pitcher's height from the web...")
         height = simple_question("Please enter manually: ")
-        delete_lines(1)
+        clear_cli()
     return height
 
-def out_dir_for(df):
+def out_dir_for(df, config_parent):
     raw_name = str(df.iloc[0]['player_name'])
     pitcher_slug = raw_name.split(',')[0].strip().replace(' ', '-')
     date_slug = str(df.iloc[0]['game_date'])[:10]
-    out_dir = pathlib.Path(__file__).parent.parent / "configs" / f"{pitcher_slug}-{date_slug}"
+    out_dir = config_parent / f"{pitcher_slug}-{date_slug}"
     out_dir.mkdir(parents=True, exist_ok=True)
     return out_dir
 
@@ -168,7 +166,7 @@ def build_chain(df, pitches):
     clear_cli()
     height = resolve_height(df)
     include_scene = yes_or_no("Fetch and include weather info?")
-    out_dir = out_dir_for(df)
+    out_dir = out_dir_for(df, DEFAULT_OUT)
     saved = write_configs(df, pitches, height, include_scene, out_dir)
 
     clear_cli()
@@ -217,6 +215,9 @@ def fetch_only(inject=None):
 
     config_path = simple_question(f"  Root path is set to: {sys.path[0]}\n  Enter relative path to file...")
     config_path = pathlib.Path(sys.path[0]) / config_path.strip()
+    config_parent = config_path.parent
+    clear_cli()
+
     try:
         batches = yaml.safe_load(config_path.read_text())
     except (OSError, yaml.YAMLError) as e:
@@ -230,27 +231,29 @@ def fetch_only(inject=None):
     # Run once for the entire request
     include_scene = yes_or_no("Fetch and include weather info?")
 
-    results = []
-    for batch in batches:
+    results_saved = []
+    for i, batch in enumerate(batches, 1):
+        clear_cli()
+        print(f"Fetching {i}/{len(batches)}")
         try:
             pitcher, date = batch['pitcher'], batch['date']
         except (TypeError, KeyError):
             print(f"  Skipping malformed batch (need 'pitcher' and 'date'): {batch!r}")
             continue
         try:
-            df = fetch_pitches(pitcher, date)
+            df = fetch_pitches(pitcher, str(date))
         except ValueError as e:
             print(f"  Skipping {pitcher} on {date}: {e}")
             continue
         height = resolve_height(df)
-        out_dir = out_dir_for(df)
+        out_dir = out_dir_for(df, config_parent)
         saved_pitches = write_configs(df, range(len(df)), height, include_scene, out_dir)
-        results.append((out_dir, saved_pitches))
+        results_saved.append((saved_pitches, pitcher))
 
     clear_cli()
-    print(f"\nProcessed {len(results)} batches:")
-    for out_dir, saved in results:
-        print(f"  {saved} config(s) -> {out_dir}")
+    print(f"\nProcessed {len(results_saved)} batches:")
+    for saved, pitcher in results_saved:
+        print(f"  {saved} config(s) for {pitcher}")
     print("\nPress ENTER to return to the main menu")
     user_input()
 

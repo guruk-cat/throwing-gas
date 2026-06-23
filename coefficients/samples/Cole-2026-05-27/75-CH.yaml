@@ -16,10 +16,14 @@ launch:
   clock_angle: 1.8000 degree
   velocity:
     vector:
-    - 7.161665572744576 ft/s
+    - 7.1616655727445755 ft/s
     - -124.12062699085824 ft/s
-    - -4.197170416594767 ft/s
+    - -4.1971704165947665 ft/s
     statcast: true
+scene:
+  temperature: 28.5 degC
+  pressure: 982.5 hPa
+  humidity: 42 percent
 training:
   ax: -12.686920 ft/s**2
   ay: 23.314729 ft/s**2

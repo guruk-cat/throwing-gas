@@ -18,8 +18,12 @@ launch:
     vector:
     - 9.038614148817253 ft/s
     - -138.023200764293 ft/s
-    - -5.621192114112732 ft/s
+    - -5.6211921141127315 ft/s
     statcast: true
+scene:
+  temperature: 13.3 degC
+  pressure: 1011.0 hPa
+  humidity: 77 percent
 training:
   ax: -20.532267 ft/s**2
   ay: 33.622590 ft/s**2

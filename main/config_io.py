@@ -62,14 +62,14 @@ def yes_or_no(question):
     p(f"{question} [y/n]")
     u = user_input()
     lines += 4
+    delete_lines(lines)
 
     if u == "y" or u == "Y":
         return True
     elif u == "n" or u == "N":
         return False
     else:
-        delete_lines(lines)
-        yes_or_no("Dammit, the question was simple. "+question)
+        yes_or_no(question)
 
 
 

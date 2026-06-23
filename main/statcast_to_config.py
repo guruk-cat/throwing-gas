@@ -207,7 +207,6 @@ def fetch_pitches(pitcher_name, date, no_verify_ssl=True):
     if no_verify_ssl:
         _disable_ssl_verification()
     mlbam_id = _lookup_mlbam(pitcher_name)
-    print(f"Fetching Statcast data for {pitcher_name} on {date}...", file=sys.stderr)
     df = statcast_pitcher(date, date, player_id=mlbam_id)
     if df is None or df.empty:
         raise ValueError(f"No pitch data found for {pitcher_name} on {date}.")

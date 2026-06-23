@@ -20,6 +20,10 @@ launch:
     - -132.34191072610002 ft/s
     - -3.590145762297904 ft/s
     statcast: true
+scene:
+  temperature: 18.1 degC
+  pressure: 1011.6 hPa
+  humidity: 64 percent
 training:
   ax: -11.157921 ft/s**2
   ay: 30.120057 ft/s**2

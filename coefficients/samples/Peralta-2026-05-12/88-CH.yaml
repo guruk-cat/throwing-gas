@@ -2,7 +2,7 @@ launch:
   handedness: right
   arm_slot: 23.8 degree
   position:
-    height: 6 ft
+    height: 6 ft 0 in
     release_pos:
     - -3.23 ft
     - 53.97 ft
@@ -20,6 +20,10 @@ launch:
     - -127.0548205011074 ft/s
     - -1.94860295152056 ft/s
     statcast: true
+scene:
+  temperature: 13.8 degC
+  pressure: 1018.7 hPa
+  humidity: 46 percent
 training:
   ax: -20.004167 ft/s**2
   ay: 27.611462 ft/s**2
