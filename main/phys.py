@@ -28,6 +28,15 @@ DEFAULT_MAGNUS_COEFFICIENT = Q_(6.749586978411e-05, 'kg * s / m')
 DEFAULT_DRAG_COEFFICIENT = Q_(0.0007884037809624002, 'kg/m')
 DEFAULT_MAGNUS_MODEL = 'squared velocity'
 
+# Air density
+_R_DRY   = 287.0500676   # specific gas constant of dry air      [J/(kg·K)]
+_R_VAPOR = 461.5         # specific gas constant of water vapor   [J/(kg·K)]
+
+# ISA sea-level defaults
+DEFAULT_TEMPERATURE = Q_(15, 'degC')
+DEFAULT_PRESSURE    = Q_(1013.25, 'hPa')
+DEFAULT_HUMIDITY    = Q_(0, 'percent')
+
 
 
 # Helper functions
@@ -74,6 +83,37 @@ def parse_quantity(s):
     return Q_(float(m.group(1)) * 12 + float(m.group(2)), 'in')
   return Q_(s)
 
+def parse_scene(scene):
+  # Parse a `scene` block into (temperature, pressure, humidity) quantities,
+  # defaulting any omitted key to its sea-level value. Values are split into
+  # magnitude + unit explicitly because the generic Q_(s) multiply path chokes
+  # on offset units like degC.
+  out = {'temperature': DEFAULT_TEMPERATURE,
+         'pressure':    DEFAULT_PRESSURE,
+         'humidity':    DEFAULT_HUMIDITY}
+  for key in out:
+    if key in scene:
+      m = re.match(r'^\s*(-?\d+(?:\.\d+)?)\s*(.*\S)\s*$', str(scene[key]))
+      out[key] = Q_(float(m.group(1)), m.group(2))
+  return out['temperature'], out['pressure'], out['humidity']
+
+def air_density(temperature, pressure, humidity):
+  # Humid-air density (Q_ in kg/m^3), treating the air as an ideal-gas mixture
+  # of dry air and water vapor:  rho = P_d / (R_d * T) + P_v / (R_v * T).
+  # Saturation vapor pressure uses the Tetens approximation (over water).
+  # See https://en.wikipedia.org/wiki/Density_of_air#Humid_air
+  T_C = temperature.to('degC').magnitude
+  T_K = temperature.to('kelvin').magnitude
+  P   = pressure.to('Pa').magnitude
+  RH  = humidity.to('dimensionless').magnitude        # fraction of saturation
+
+  P_sat = 610.78 * 10 ** (7.5 * T_C / (T_C + 237.3))  # Tetens, Pa
+  P_v   = RH * P_sat                                  # water-vapor partial pressure
+  P_d   = P - P_v                                     # dry-air partial pressure
+
+  rho = P_d / (_R_DRY * T_K) + P_v / (_R_VAPOR * T_K)
+  return Q_(rho, 'kg/m**3')
+
 
 
 # Frame builders
@@ -113,6 +153,7 @@ class Simulation:
 
     self.config.wind_speed                  = Q_(0, 'mph')
     self.config.wind_direction              = Q_(0, 'degree')
+    self.config.rho                         = air_density(DEFAULT_TEMPERATURE, DEFAULT_PRESSURE, DEFAULT_HUMIDITY)
 
     self.config.drag_coefficient            = DEFAULT_DRAG_COEFFICIENT
     self.config.magnus_coefficient          = DEFAULT_MAGNUS_COEFFICIENT
@@ -185,8 +226,6 @@ class Simulation:
     return 10
 
   def derivative(self, state):
-    # TODO: Include air density rho in drag and magnus calculations
-
     dsdt = numpy.zeros(self.state_size)
 
     dsdt[0]   = 1           # dt/dt = 1
@@ -197,15 +236,15 @@ class Simulation:
     dsdt[4:7] -= si_mag(self.config.gravitational_acceleration) * zhat  # gravity
     
     speed = norm(state[4:7])
-    drag = (-1) * si_mag(self.config.drag_coefficient) * speed * state[4:7] / si_mag(self.config.ball_mass) 
+    drag = (-1) * si_mag(self.config.drag_coefficient) * si_mag(self.config.rho) * speed * state[4:7] / si_mag(self.config.ball_mass)
     dsdt[4:7] += drag
 
     magnus = None 
     if self.config.magnus_model == 'squared velocity':
-      magnus = si_mag(self.config.magnus_coefficient) * speed * numpy.cross(state[7:10], state[4:7]) / si_mag(self.config.ball_mass)
+      magnus = si_mag(self.config.magnus_coefficient) * si_mag(self.config.rho) * speed * numpy.cross(state[7:10], state[4:7]) / si_mag(self.config.ball_mass)
       dsdt[4:7] += magnus
     elif self.config.magnus_model == 'linear velocity':
-      magnus = si_mag(self.config.magnus_coefficient) * numpy.cross(state[7:10], state[4:7]) / si_mag(self.config.ball_mass)
+      magnus = si_mag(self.config.magnus_coefficient) * si_mag(self.config.rho) * numpy.cross(state[7:10], state[4:7]) / si_mag(self.config.ball_mass)
       dsdt[4:7] += magnus
     else:
       raise Exception(f"Unrecognized magnus model '{self.config.magnus_model}'")
@@ -247,6 +286,7 @@ class Simulation:
   def point_run(self, launch_config, print_debug=False):
     # used for constant optimization
     # compute derivative of velo vector for one time step and return vector
+    self.config.rho = Q_(launch_config.get_air_density(), 'kg/m**3')
     state = numpy.zeros(self.state_size)
     state[4:7]  = launch_config.get_velocity()
     state[7:10] = launch_config.get_spin()
@@ -268,6 +308,7 @@ class Simulation:
     return dv_dt
 
   def run(self, launch_config, terminate_function=lambda record: len(record) > 1000, record_all=True, adaptive=True):
+    self.config.rho = Q_(launch_config.get_air_density(), 'kg/m**3')
     state = numpy.zeros(self.state_size)
     state[1:4]  = launch_config.get_position()
     state[4:7]  = launch_config.get_velocity()
@@ -307,10 +348,13 @@ class Simulation:
 
 
 class Configuration:
-  # TODO: Air density self variable (rho)
-  #       and a private function that calculates rho from temp, pressure, and humidity
-
   def __init__(self):
+    # Scene / environment parameters (used to compute air density)
+    self.temperature = DEFAULT_TEMPERATURE   # Q_ temperature
+    self.pressure    = DEFAULT_PRESSURE      # Q_ pressure
+    self.humidity    = DEFAULT_HUMIDITY      # Q_ relative humidity (fraction of saturation)
+    self.rho         = None                  # Q_ air density; lazily filled by get_air_density()
+
     # Arm geometry parameters
     self.handedness    = 'right'
     self.arm_slot      = Q_(45, 'degree')
@@ -398,6 +442,17 @@ class Configuration:
         print("  ", k)
       print("Make sure you didn't mispell something.")
 
+  def configure_scene(self, scene):
+    # Parse a `scene` block (temperature, pressure, humidity).
+    # Any omitted key keeps its sea-level default. Invalidates the cached density.
+    self.temperature, self.pressure, self.humidity = parse_scene(scene)
+    self.rho = None
+
+  def get_air_density(self, unit=ureg.kg/ureg.meter**3):
+    if self.rho is None:
+      self.rho = air_density(self.temperature, self.pressure, self.humidity)
+    return float(self.rho.to(unit).magnitude)
+
   def _resolve_geometry(self):
     # Returns (release_world_m, arm_dir, M) — all quantities in SI base units.
     arm_slot_rad = self.arm_slot.to('radian').magnitude
@@ -447,17 +502,18 @@ class Configuration:
     w     = self.get_spin()
     speed = norm(v50_ms)
 
-    Cd = si_mag(DEFAULT_DRAG_COEFFICIENT)
-    Cm = si_mag(DEFAULT_MAGNUS_COEFFICIENT)
-    m  = si_mag(Q_(145, 'g'))
+    Cd  = si_mag(DEFAULT_DRAG_COEFFICIENT)
+    Cm  = si_mag(DEFAULT_MAGNUS_COEFFICIENT)
+    m   = si_mag(Q_(145, 'g'))
+    rho = self.get_air_density()
 
     a = numpy.zeros(3)
     a -= 9.8 * zhat
-    a -= (Cd / m) * speed * v50_ms
+    a -= (Cd * rho / m) * speed * v50_ms
     if self.magnus_model == 'squared velocity':
-      a += (Cm / m) * speed * numpy.cross(w, v50_ms)
+      a += (Cm * rho / m) * speed * numpy.cross(w, v50_ms)
     elif self.magnus_model == 'linear velocity':
-      a += (Cm / m) * numpy.cross(w, v50_ms)
+      a += (Cm * rho / m) * numpy.cross(w, v50_ms)
     else:
       raise ValueError(f"Unrecognized magnus model '{self.magnus_model}'")
 

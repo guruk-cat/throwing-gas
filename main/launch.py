@@ -59,6 +59,8 @@ def main():
 
         launch = Configuration()
         launch.configure(cfg['launch'])
+        if 'scene' in cfg:
+            launch.configure_scene(cfg['scene'])
 
         trajectory = sim.run(launch, terminate)
         trajectory = [numpy.append(state, sim.extra.record[i]) for i, state in enumerate(trajectory)]
