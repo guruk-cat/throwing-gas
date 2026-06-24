@@ -293,7 +293,7 @@ def pitch_to_config(row, height, arm_slot_override=None, include_training=False,
         }
     }
     if include_scene:
-        cfg['scene'] = _build_scene(row)
+        cfg['launch']['scene'] = _build_scene(row)
     if include_training:
         cfg['training'] = _build_training(row)
     

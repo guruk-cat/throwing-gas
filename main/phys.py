@@ -209,8 +209,8 @@ class Simulation:
     self.extra.record       = [numpy.zeros(3)]
   
   def record_compute_time(self):
-    self.extra.record_type = "compute"
-    self.extra.record = 0.0
+    self.extra.record_type  = "compute"
+    self.extra.record       = 0.0
 
 
 
@@ -435,6 +435,10 @@ class Configuration:
       ax = numpy.asarray(config['spin_axis'], dtype=float)
       self.spin_axis = ax / norm(ax)
       config_keys_used.append('spin_axis')
+
+    if 'scene' in config:
+      self.configure_scene(config['scene'])
+      config_keys_used.append('scene')
 
     if len(config_keys_used) != len(config.keys()):
       print("Warning: there were unused keys when configuring LaunchConfiguration:")

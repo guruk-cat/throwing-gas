@@ -1,6 +1,6 @@
 # Configuration Reference
 
-A pitch config file is a YAML document that configures a single pitch. It has up to four top-level blocks: `launch` (required), `scene` (optional), `simulation` (optional), and `training` (optional). All physical quantities are strings parsed by `pint`, and units can be in any compatible form (e.g. `"97 mph"`, `"43.3 m/s"`).
+A pitch config file is a YAML document that configures a single pitch. It has up to three top-level blocks: `launch` (required), `simulation` (optional), and `training` (optional). All physical quantities are strings parsed by `pint`, and units can be in any compatible form (e.g. `"97 mph"`, `"43.3 m/s"`).
 
 A "pitch config" file is different from a "list config" file, which is used for producing batches of multiple pitch configs. See [CLI help](./cli-help.md) for details on the latter.
 
@@ -87,9 +87,9 @@ Common `spin_axis` values (pitch frame, righty pitcher):
 | `[0, 0, -1]` | Arm-side sidespin (sinker/two-seam) |
 | `[0, 0, 1]` | Glove-side sidespin (cut fastball) |
 
-## 2. `scene`
+### 1.5. Scene
 
-Optional block describing the environmental conditions at the ballpark. Written by `statcast_to_config.py` / `command.py` when weather lookup is enabled; inferred from the home team (ballpark coordinates) and first-pitch time, with conditions fetched from the [Open-Meteo](https://open-meteo.com/) historical archive.
+Optional `scene` sub-block describing the environmental conditions at the ballpark, used to compute air density. Written by `statcast_to_config.py` / `command.py` when weather lookup is enabled; inferred from the home team (ballpark coordinates) and first-pitch time, with conditions fetched from the [Open-Meteo](https://open-meteo.com/) historical archive. If omitted, ISA sea-level conditions (15 °C, 1013.25 hPa, dry) are assumed.
 
 | Key | Type | Description |
 |---|---|---|
@@ -97,7 +97,14 @@ Optional block describing the environmental conditions at the ballpark. Written 
 | `pressure` | quantity (pressure) | Surface pressure at first pitch, in hPa (e.g. `"1011.0 hPa"`). Already reflects ballpark altitude. |
 | `humidity` | quantity | Relative humidity at first pitch, as a percentage (e.g. `"77 percent"`). |
 
-## 3. `simulation`
+```yaml
+scene:
+  temperature: "24.9 degC"
+  pressure: "1000.6 hPa"
+  humidity: "65 percent"
+```
+
+## 2. `simulation`
 
 All keys are optional. Omitted keys keep their defaults.
 
@@ -116,7 +123,7 @@ All keys are optional. Omitted keys keep their defaults.
 | `wind_speed` | `0 mph` | Not yet implemented in force calculations; reserved. |
 | `wind_direction` | `0 degree` | Not yet implemented; reserved. |
 
-## 4. `training`
+## 3. `training`
 
 Optional block written by `statcast_to_config.py --training` or the `command.py` CLI tool when selecting the appropriate option. Stores the ground-truth plate crossing position from Statcast, used by the optimizer as the target output (s₂) for a pitch.
 
@@ -156,6 +163,11 @@ launch:
 
   velocity:
     target: ["0.3 m", "0 m", "1.7 m"]
+
+  scene:
+    temperature: "24.9 degC"
+    pressure:    "1000.6 hPa"
+    humidity:    "65 percent"
 
 simulation:
   time_step:       "0.5 ms"
