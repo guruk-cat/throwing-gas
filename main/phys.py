@@ -300,10 +300,9 @@ class Simulation:
       print(f"time      : {state[0]}")
       print(f"init pos  : [{', '.join(str(v) for v in state[1:4])}]")
       print(f"init velo : [{', '.join(str(v) for v in state[4:7])}]")
-      print(f"init spin : [{', '.join(str(v) for v in state[7:10])}]\n")
-
+      print(f"init spin : [{', '.join(str(v) for v in state[7:10])}]")
       print(f"dt        : {dt}")
-      print(f"dv_dt     : [{', '.join(str(v) for v in dv_dt)}]")
+      print(f"dv_dt     : [{', '.join(str(v) for v in dv_dt)}]\n")
 
     return dv_dt
 

@@ -1,4 +1,3 @@
-import glob
 import pathlib
 import os
 import sys
@@ -75,56 +74,27 @@ def yes_or_no(question):
 
 # CONFIG I/O
 
-def select_batches(dir):
-    all_batches = sorted([d for d in dir.iterdir() if d.is_dir()])
-
-    if not all_batches:
-        raise ValueError(f"No subdirectories found in {dir}")
-
-    clear_cli()
-    print("\nAvailable batches:")
-    for i, b in enumerate(all_batches, 1):
-        n = len(list(b.glob('*.yaml')))
-        print(f"  [{i}] {b.name}  ({n} pitches)")
-
-    while True:
-        raw = input("\nBatches to include (e.g. '1 3 4'), or Enter for all: ").strip()
-        if not raw:
-            selected = all_batches
-            break
-        try:
-            indices  = [int(x) - 1 for x in raw.split()]
-            if any(i < 0 or i >= len(all_batches) for i in indices):
-                raise IndexError
-            selected = [all_batches[i] for i in indices]
-            break
-        except (ValueError, IndexError):
-            print(f"  Invalid input. Enter numbers between 1 and {len(all_batches)}, separated by spaces.")
-
-    clear_cli()
-    print(f"\nSelecting {len(selected)} batches...")
-    return selected
-
-def load_training(patterns):
-    # Expand glob patterns, load each YAML, and return a list of config dicts.
-    # Files without a 'training' block are skipped with a warning.
-    paths = []
-    for pattern in patterns:
-        matched = sorted(glob.glob(pattern))
-        paths.extend(matched if matched else [pattern])
+def load_dir(dir, pattern= '*.yaml', load_training=False):
+    dir = pathlib.Path(dir)
+    paths = sorted(dir.glob(pattern))
 
     cfgs = []
     for path in paths:
         with open(path) as f:
             cfg = yaml.safe_load(f)
-        if 'training' not in cfg:
+        if load_training and 'training' not in cfg:
             print(f"Warning: {path} has no 'training' block — skipping.")
             continue
         cfgs.append(cfg)
 
     if not cfgs:
         raise ValueError("No config files with a 'training' block were found.")
+   
+    print(f"{dir.name}: {len(cfgs)} pitches loaded.")
     return cfgs
+
+def extract_plate(cfgs):
+    return
 
 def extract_true_acc(cfgs):
     # Pull ax, ay, az from each config's 'training' block.

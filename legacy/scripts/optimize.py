@@ -8,7 +8,8 @@ import yaml
 import os
 import time
 
-sys.path.insert(0, str(pathlib.Path(__file__).parent.parent.parent / 'main'))
+repo_root = pathlib.Path(__file__).parent.parent.parent
+sys.path.insert(0, str(repo_root / 'main'))
 from phys import Simulation, Configuration
 
 
