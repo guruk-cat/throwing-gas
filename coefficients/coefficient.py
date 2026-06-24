@@ -1,22 +1,18 @@
 import argparse
 import pathlib
 import sys
-import time
-
 import pint
 import numpy
 
 repo_root = pathlib.Path(__file__).parent.parent
 sys.path.insert(0, str(repo_root / 'main'))
 from phys import Simulation, Configuration
-from config_io import load_dir, extract_true_acc, clear_cli, extract_plate, user_input
+from config_io import load_dir, extract_true_acc, clear_cli, extract_plate
 
-
-
+# UNIT HELPERS
 ureg = pint.UnitRegistry()
 pint.set_application_registry(ureg)
 Quant = ureg.Quantity    # type: ignore[misc]
-
 const_units = {
     "alpha absorbs all"     : "kg / m",
     "beta absorbs all"      : "kg * s / m",
@@ -24,26 +20,32 @@ const_units = {
     "displacement err"      : "inch"
 }
 
-default_step_rate       = 1.0e-13   # for gradient descent
+# SETUP CONSTANTS
+init_step_rate          = 1.0e-2    # large value just for the first run
 default_delta_rate      = 1.0e-3    # for delta k
-default_gradient_thresh = 1.0e-3
-displc_err_goal = Quant(1, 'inch').to_base_units().magnitude
+armijo_constant         = 1.0e-4    # for step calibration
+default_gradient_thresh = 1.0e-8    # for declaring convergence
+plate_y = Quant(8.5, "inch")        # middle of plate; Statcast 2026+
+
+
+
+# MATH HELPERS
 
 def squared_err(prediction, reference):
     # pred, ref: 1D array with x, y, z.
     # Returns scalar error
     diff = numpy.asarray(prediction) - numpy.asarray(reference)
-    return numpy.linalg.norm(diff**2)
+    return numpy.sum(diff**2)
 
 def percent_diff(a, b):
     return abs((a - b) / b)
 
-# middle of plate; Statcast 2026+
-PLATE_Y = Quant(8.5, "inch")
+def armijo_condition(c, alpha, gradient):
+    return c * alpha * (gradient ** 2)
 
 def crossing_point(traj):
     y = traj[:, 2]
-    i = numpy.argmin(numpy.abs(y - PLATE_Y.to_base_units().magnitude))
+    i = numpy.argmin(numpy.abs(y - plate_y.to_base_units().magnitude))
     return i
 
 
@@ -71,14 +73,28 @@ class Coefficient():
         if not complex:
             self.value      = init_value
             self.get_value  = lambda: self.value
+            self.set_value  = self._new_scalar
             self.nudge      = self._simple_gradient
         else:
-            self.c_a        = init_value
-            self.c_b        = init_value
-            self.c_c        = init_value
-            self.c_d        = init_value
-            self.get_value  = lambda v: self.c_a + self.c_b * v + self.c_c * (v**2) + self.c_d * (v**3)
+            self.c_s        = []
+            self.power      = 3     # default to v**3
+            for i in range(self.power + 1):
+                self.c_s.append(init_value)
+            self.get_value  = self._compute_polynomial
+            self.set_value  = self._new_polynomial
             self.nudge      = self._complex_gradient
+
+    def _new_scalar(self, new_value):
+        self.value = new_value
+
+    def _new_polynomial(self, c_s):
+        self.c_s = c_s
+
+    def _compute_polynomial(self, v):
+        sum = 0
+        for i, term_coeff in enumerate(self.c_s):
+            sum += term_coeff * (v ** i)
+        return sum
 
     def _simple_gradient(self, step_rate, delta_rate, cfgs, refs):
         k = Quant(self.value, self.unit)
@@ -107,68 +123,87 @@ class Coefficient():
         errs_prime = numpy.array(errs_prime)
         de_dk = (numpy.mean(errs_prime) - numpy.mean(errs)) / delta_k.magnitude
         new_k = k.magnitude - step_rate * de_dk
-        rms = numpy.sqrt(numpy.mean(errs))
 
-        self.value = new_k
-        return (new_k, rms, de_dk)
+        return (new_k, numpy.mean(errs), de_dk)
 
     def _complex_gradient(self, step_rate, delta_rate, cfgs, refs):
         pass
             
 
 
-def set_goal(max_displacement, time):
-    return 2 * max_displacement / (time**2)
+# OPTIMIZERS
 
-def check_epoch(errs, gradient, noise, cvg_thershold):
-    if len(errs) < 3:
-        return 'continue'
-    elif abs(gradient) < noise:
-        return 'terminate'
-    elif errs[-1] > errs[-2]:
-        return 'reduce step'
-    elif errs[-1] < cvg_thershold and errs[-2] < cvg_thershold:
-        return 'converge'
-    
 def simple_optimization(type, epochs, cfgs, refs):
-    k = Coefficient(type, False)
+    k_1 = Coefficient(type, False)
+    k_2 = Coefficient(type, False)
 
-    step_rate = default_step_rate
+    step_rate = init_step_rate
     delta_rate = default_delta_rate
     grad_thresh = default_gradient_thresh
-    convergence_thresh = set_goal(displc_err_goal, 0.4)
 
-    errs = []
     for i in range(1, epochs + 1):
         print(f"\nRunning {i}/{epochs}\n")
-        new_value, rms, gradient = k.nudge(step_rate, delta_rate, cfgs, refs)
-        errs.append(rms)
-        print(f"  K         = {new_value:.4e}")
-        print(f"  RMS error = {rms:.8e}")
-        print(f"  Gradient  = {gradient:.8f}")
+        attempts = 0
+        keep_going = True
+        while keep_going:
+            attempts += 1
+            print(f"  Attempting ({attempts})")
+            print(f"    Step rate           = {step_rate:4e}")
+            new_value_1, error_1, gradient_1 = k_1.nudge(step_rate, delta_rate, cfgs, refs)
+            if new_value_1 <= 0:
+                print(f"    Coefficient is not positive")
+                step_rate = step_rate / 2
+                continue
+            
+            k_2.set_value(new_value_1)
+            _, error_2, _ = k_2.nudge(step_rate, delta_rate, cfgs, refs)
+            condition = armijo_condition(armijo_constant, step_rate, gradient_1)
+            print(f"    Armijio condition   = {condition:.4e}")
 
-        check = check_epoch(errs, gradient, grad_thresh, convergence_thresh)
-        if check == 'terminate':
-            print("  Error is not getting smaller... terminating\n")
+            if error_1 - error_2 <= condition:
+                print(f"    Step too big")
+                step_rate = step_rate / 2
+                continue
+            else:
+                k_1.set_value(new_value_1)
+                step_rate = step_rate * 1.2
+                keep_going = False
+
+        print(f"  K         = {new_value_1:.4e}")
+        print(f"  RMS error = {numpy.sqrt(error_1):.4e}")
+        print(f"  Gradient  = {gradient_1:.4e}")
+        if abs(gradient_1) < grad_thresh:
+            print(f"  Error is not getting any smaller... declaring convergence")
             break
-        if check == 'converge':
-            print("  Hit error goal... terminating\n")
-            break
-    return k
+
+    return k_1
+
+def complex_optimization():
+    return
 
 def check_goferr(k, cfgs):
+    new_coefficient = Quant(k.get_value(), k.unit)
+
+    i = 1
+    total = len(cfgs)
     errs = []
-    plates = extract_plate(cfgs)    # TODO: pint units??
+    plates = extract_plate(cfgs)
     for config, plate in zip(cfgs, plates):
+        print(f"{i}/{total}")
         sim = Simulation()
-        setattr(sim.config, k.attr, k)
+        setattr(sim.config, k.attr, new_coefficient)
         launch = Configuration()
         launch.configure(config['launch'])
         trajectory = sim.run(launch)
-        plate_i = crossing_point(trajectory)
+        plate_i = crossing_point(numpy.array(trajectory))
         plate_pred = numpy.array([trajectory[plate_i][1], trajectory[plate_i][3]])
         err = numpy.linalg.norm(plate - plate_pred)
         errs.append(err)
+        i += 1
+
+        # DEBUG
+        # print(f"  Plate reference   : {plate}")
+        # print(f"  Plate prediction  : ({trajectory[plate_i][1]:.2e}, {trajectory[plate_i][2]:.2e}, {trajectory[plate_i][3]:.2e})")
 
     return numpy.mean(numpy.array(errs))
 

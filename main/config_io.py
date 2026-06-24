@@ -94,7 +94,13 @@ def load_dir(dir, pattern= '*.yaml', load_training=False):
     return cfgs
 
 def extract_plate(cfgs):
-    return
+    result = []
+    for cfg in cfgs:
+        t = cfg['training']
+        plate_x = _Q(t['plate_x']).to_base_units().magnitude
+        plate_z = _Q(t['plate_z']).to_base_units().magnitude
+        result.append([plate_x, plate_z])
+    return numpy.array(result)
 
 def extract_true_acc(cfgs):
     # Pull ax, ay, az from each config's 'training' block.
