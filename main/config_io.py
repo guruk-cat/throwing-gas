@@ -46,7 +46,7 @@ def simple_question(question):
         print(s)
         lines += s.count('\n') + 1   # +1 for the newline print() always appends
 
-    p(f"\n{question}")
+    p(f"{question}")
     u = user_input()
     lines += 4
     delete_lines(lines)

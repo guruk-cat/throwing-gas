@@ -24,4 +24,12 @@ This is useful if you are fetching from multiple different games. The only time 
 
 For each batch (that is, a pitcher's game on a given date), one or more *pitch configs* are generated. The *list config* as described above is for generating batches of such pitch configs.
 
+By default, every pitch in a batch is fetched. You can optionally narrow a batch to specific pitches with a `range` entry, using the same syntax as the Option A selection prompt (comma-separated pitch numbers and/or ranges). Omit it to fetch the whole batch:
+
+```yaml
+- pitcher: John Doe
+  date: 2026-06-01
+  range: 1-6, 33, 42-53
+```
+
 Unlike Option A, with this method the output is written to the parent directory of the list config file.

@@ -146,7 +146,16 @@ def out_dir_for(df, config_parent):
     out_dir.mkdir(parents=True, exist_ok=True)
     return out_dir
 
-def write_configs(df, pitches, height, include_scene, out_dir):
+def file_name_for(row, i, include_slug=False):
+    pitch_type = str(row.get('pitch_type', 'UNK'))
+    name = f"{i + 1}-{pitch_type}.yaml"
+    if include_slug:
+        pitcher_slug = str(row['player_name']).split(',')[0].strip().replace(' ', '-')
+        date_slug = str(row['game_date'])[:10]
+        name = f"{pitcher_slug}-{date_slug}-{name}"
+    return name
+
+def write_configs(df, pitches, height, include_scene, out_dir, include_slug=False):
     saved_pitches = 0
     for i in pitches:
         row = df.iloc[i]
@@ -155,8 +164,7 @@ def write_configs(df, pitches, height, include_scene, out_dir):
         except ValueError as e:
             print(f"  Skipping pitch #{i + 1}: {e}")
             continue
-        pitch_type = str(row.get('pitch_type', 'UNK'))
-        filename = f"{i + 1}-{pitch_type}.yaml"
+        filename = file_name_for(row, i, include_slug=include_slug)
         yaml_str = yaml.dump(config, default_flow_style=False, sort_keys=False, allow_unicode=True)
         (out_dir / filename).write_text(yaml_str)
         saved_pitches += 1
@@ -231,6 +239,8 @@ def fetch_only(inject=None):
     # Run once for the entire request
     include_scene = yes_or_no("Fetch and include weather info?")
     consolidate_output = yes_or_no("Consolidate output into one folder?")
+    if consolidate_output:
+        out_dir_name = simple_question(f"Output folder name? It will be {config_parent}/<your-folder-name>")
 
     results_saved = []
     for i, batch in enumerate(batches, 1):
@@ -248,14 +258,21 @@ def fetch_only(inject=None):
             continue
         height = resolve_height(df)
 
-        # TODO: if consolidate_output == True, use a single out_dir for all outputs,
-        #       instead of different dir by pitcher/game
-        out_dir = out_dir_for(df, config_parent)
+        if consolidate_output:
+            out_dir = config_parent / out_dir_name.strip()
+            out_dir.mkdir(parents=True, exist_ok=True)
+        else:
+            out_dir = out_dir_for(df, config_parent)
 
-        # TODO: include an optional `range` entry in the list config yaml
-        #       instead of using the whole batch every time. Default to whole
-        #       batch if entry not present.
-        saved_pitches = write_configs(df, range(len(df)), height, include_scene, out_dir)
+        # Narrow down by range
+        pitch_range = batch.get('range')
+        if pitch_range is not None:
+            pitches = [i - 1 for i in parse_selection(str(pitch_range))]
+            pitches = [i for i in pitches if 0 <= i < len(df)]
+        else:
+            pitches = range(len(df))
+
+        saved_pitches = write_configs(df, pitches, height, include_scene, out_dir, include_slug=consolidate_output)
         results_saved.append((saved_pitches, pitcher))
 
     clear_cli()
