@@ -15,16 +15,21 @@ from config_io import clear_cli, exit_cli, user_input, delete_lines, simple_ques
 
 # Run with options
 include_training_data = False
+make_api_calls = False
 SETTINGS_PATH = pathlib.Path(__file__).parent / "command_settings.json"
 
 def load_settings():
-    global include_training_data
+    global include_training_data, make_api_calls
     if SETTINGS_PATH.exists():
         s = json.loads(SETTINGS_PATH.read_text())
         include_training_data = s.get("include_training_data", False)
+        make_api_calls = s.get("make_api_calls", False)
 
 def save_settings():
-    SETTINGS_PATH.write_text(json.dumps({"include_training_data": include_training_data}))
+    SETTINGS_PATH.write_text(json.dumps({
+        "include_training_data": include_training_data,
+        "make_api_calls": make_api_calls,
+    }))
 
 
 # CLI menu
@@ -173,10 +178,8 @@ def write_configs(df, pitches, height, include_scene, include_meta, out_dir, inc
 def build_chain(df, pitches):
     clear_cli()
     height = resolve_height(df)
-    include_scene = yes_or_no("Fetch and include weather info?")
     out_dir = out_dir_for(df, DEFAULT_OUT)
-    include_metadata = yes_or_no("Include metadata?")
-    saved = write_configs(df, pitches, height, include_scene, include_metadata, out_dir)
+    saved = write_configs(df, pitches, height, make_api_calls, make_api_calls, out_dir)
 
     clear_cli()
     print(f"\nSaved {saved} config(s) to {out_dir}")
@@ -238,8 +241,6 @@ def fetch_only(inject=None):
         return
 
     # Run once for the entire request
-    include_scene = yes_or_no("Fetch and include weather info?")
-    include_metadata = yes_or_no("Include metadata in each config?")
     consolidate_output = yes_or_no("Consolidate output into one folder?")
     if consolidate_output:
         out_dir_name = simple_question(f"Output folder name? It will be {config_parent}/<your-folder-name>")
@@ -274,7 +275,7 @@ def fetch_only(inject=None):
         else:
             pitches = range(len(df))
 
-        saved_pitches = write_configs(df, pitches, height, include_scene, include_metadata, out_dir, include_slug=consolidate_output)
+        saved_pitches = write_configs(df, pitches, height, make_api_calls, make_api_calls, out_dir, include_slug=consolidate_output)
         results_saved.append((saved_pitches, pitcher))
 
     clear_cli()
@@ -294,8 +295,15 @@ def toggle_training_data():
     save_settings()
     options.run_menu()
 
+def toggle_api_calls():
+    global make_api_calls
+    make_api_calls = not make_api_calls
+    save_settings()
+    options.run_menu()
+
 options = Menu("Options",[
-    (lambda: f"Include training data in output  [{'ON' if include_training_data else 'OFF'}]", toggle_training_data)
+    (lambda: f"Include training data in output  [{'ON' if include_training_data else 'OFF'}]", toggle_training_data),
+    (lambda: f"Make API calls (weather + metadata)  [{'ON' if make_api_calls else 'OFF'}]", toggle_api_calls)
 ])
 
 
