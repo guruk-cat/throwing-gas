@@ -175,7 +175,8 @@ def build_chain(df, pitches):
     height = resolve_height(df)
     include_scene = yes_or_no("Fetch and include weather info?")
     out_dir = out_dir_for(df, DEFAULT_OUT)
-    saved = write_configs(df, pitches, height, include_scene, out_dir)
+    include_metadata = yes_or_no("Include metadata?")
+    saved = write_configs(df, pitches, height, include_scene, include_metadata, out_dir)
 
     clear_cli()
     print(f"\nSaved {saved} config(s) to {out_dir}")
