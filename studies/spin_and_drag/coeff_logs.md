@@ -1,4 +1,4 @@
-# New Assumptions for, and Subsequent Computing of, the Magnus Force and its Coefficient
+# Research, Testing, and Implementation Logs for Modeling Unknown Coefficients
 
 ## 1. Background
 
@@ -14,7 +14,7 @@ $$ \vec{F}_{magnus} = \beta \cdot \vec{\omega} \times \vec{v} $$
 
 where $\beta$ is an empirically determined constant, $\omega$ is spin, and $v$ is velocity.
 
-However, as you can see in [the optimization results](docs/k-results.md), I could not get the average error in acceleration down below ~2.35 $m/s^2$ over a batch of ten Statcast-tracked games. This is a pretty significant error, as the final displacement error at home plate can be as large as 8 inches. Hence, a refinement of the physics model is warranted. 
+However, I could not get the average error in acceleration down below ~2.35 $m/s^2$ over a batch of ten Statcast-tracked games. This is a pretty significant error, as the final displacement error at home plate can be as large as 8 inches. Hence, a refinement of the physics model is warranted. 
 
 The first suspect of the large error is, of course, air density. It would presumably vary by ballpark and by weather. The Rockies' Coors field, for example, is known as a homerun-friendly park. A part of the reason is due to its altitude and consequent low air drag on the balls. We can imagine that it causes less breaks on pitches, as well. 
 
@@ -143,12 +143,10 @@ Avg. Δx (all samples)    : 5.7741e+00 (inch)
   Δx avg. for sliders    : 8.8195e+00 (inch)
 ```
 
-First, these errors are the best I've seen so far during this project. The lowest one I had gotten previously was 2.3538 (m/s²), before air density was factored out of the unknown coefficient (see [old optimizer results](../legacy/docs/k-results.md))
+First, these errors are the best I've seen so far during this project. The lowest one I had gotten previously was 2.3538 (m/s²), before air density was factored out of the unknown coefficient (see [old optimizer results](../../legacy/docs/k-results.md))
 
 The error is noticeably larger for offspeeds, and *significantly* larger for sliders. This may have to do with gyro spin, since both of those pitches have gyro spin that affects the trajectory of the ball as it nears the plate (i.e., as its velocity vector gains more components in the $x$ and $z$ directions).
 
 Putting aside that, however, the fastballs and curveballs (which have more straight-forward spin axes) still present average errors that are too large to be satisfactory. Running the script with the `--details` flag shows that some of those pitches are only off by an inch or so, but stuff like sinkers (which again has some degree of gyro spin) skew the average. I do wonder if the "effective spin" variable in Statcast trackings could be used, in conjunction with the regular spin rate, to back-compute the complete, three-dimensional spin vector.
 
-## 4. Polynomial
-
-Not implemented yet.
+## 4. Testing for Gyro Spin

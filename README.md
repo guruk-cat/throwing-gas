@@ -23,7 +23,7 @@ This is a baseball pitch simulator. The repo contains a physics simulator, confi
 * Import data from Statcast to compare, modify, and play with pitches actually thrown in the MLB.
 * Create imaginary pitcher profiles or test "what if" scenarios.
 
-Studies are being conducted to improve the accuracy of the simulations. Other studies focus on better understanding pitch types. A simple CLI tool has been built for utilizing Statcast, and more work is to come. For the latest ongoing work, see [new coefficient modeling](coefficients/minimizing.md).
+Studies are being conducted to improve the accuracy of the simulations. Other studies focus on better understanding pitch types. A simple CLI tool has been built for utilizing Statcast, and more work is to come. For the latest ongoing work, see [new coefficient modeling](studies/spin_and_drag/coeff_logs.md).
 
 Here are some works that were completed earlier:
 

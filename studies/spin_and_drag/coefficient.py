@@ -4,7 +4,7 @@ import sys
 import pint
 import numpy
 
-repo_root = pathlib.Path(__file__).parent.parent
+repo_root = pathlib.Path(__file__).parent.parent.parent
 sys.path.insert(0, str(repo_root / 'main'))
 from phys import Simulation, Configuration
 from config_io import load_dir, extract_true_acc, clear_cli, extract_plate, delete_lines
