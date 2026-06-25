@@ -30,3 +30,8 @@ training:
   az: -30.860506 ft/s**2
   plate_x: -0.625593 ft
   plate_z: 2.505531 ft
+metadata:
+  pitch_type: FS
+  pitcher: Yoshinobu Yamamoto
+  game_date: '2026-06-20'
+  pitch_count: 17

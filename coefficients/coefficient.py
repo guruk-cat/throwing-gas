@@ -151,20 +151,14 @@ def check_goferr(k, cfgs):
         i += 1
         delete_lines(1)
 
-        # DEBUG
-        # print(f"  Plate reference   : {plate}")
-        # print(f"  Plate prediction  : ({trajectory[plate_i][1]:.2e}, {trajectory[plate_i][2]:.2e}, {trajectory[plate_i][3]:.2e})")
-
     return numpy.mean(numpy.array(errs))
 
 def main():
     parse = argparse.ArgumentParser(description="Optimize coefficients via gradient descent.")
     parse.add_argument('type', choices=['magnus', 'drag'], help="Which coefficient to optimize")
     parse.add_argument('path', type=pathlib.Path, help="Relative path from repo root to directory holding config files")
-    parse.add_argument('--air-density', type=bool, default=True, help="Factor in air density")
-    parse.add_argument('--complex', type=bool, default=False, help="Coefficient is a polynomial of velocity")
-    parse.add_argument('--epochs', type=int, default=100, help="Number of optimization epochs")
-    parse.add_argument('--goferr', type=bool, default=False, help="Check good ole-fashioned error after optimization")
+    parse.add_argument('--complex', action='store_true', help="Coefficient is a polynomial of velocity")
+    parse.add_argument('--goferr', action='store_true', help="Check good ole-fashioned error after determining K")
     args = parse.parse_args()
     clear_cli()
 

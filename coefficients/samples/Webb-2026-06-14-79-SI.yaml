@@ -18,7 +18,7 @@ launch:
     vector:
     - 7.657055773887572 ft/s
     - -134.24905495872727 ft/s
-    - -3.35202842613424 ft/s
+    - -3.3520284261342397 ft/s
     statcast: true
   scene:
     temperature: 18.3 degC
@@ -30,3 +30,8 @@ training:
   az: -28.284103 ft/s**2
   plate_x: 0.349413 ft
   plate_z: 1.663661 ft
+metadata:
+  pitch_type: SI
+  pitcher: Logan Webb
+  game_date: '2026-06-14'
+  pitch_count: 79

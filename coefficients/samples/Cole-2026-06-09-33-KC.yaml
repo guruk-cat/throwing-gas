@@ -30,3 +30,8 @@ training:
   az: -43.173766 ft/s**2
   plate_x: 1.334318 ft
   plate_z: 1.770043 ft
+metadata:
+  pitch_type: KC
+  pitcher: Gerrit Cole
+  game_date: '2026-06-09'
+  pitch_count: 33

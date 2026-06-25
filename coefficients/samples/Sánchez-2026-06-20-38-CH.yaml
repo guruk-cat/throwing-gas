@@ -1,0 +1,37 @@
+launch:
+  handedness: left
+  arm_slot: 31.2 degree
+  position:
+    height: 6 ft 6 in
+    release_pos:
+    - 1.94 ft
+    - 53.53 ft
+    - 6.09 ft
+  speed: 86.0 mph
+  spin: 2018.0 rpm
+  spin_axis:
+  - -1
+  - 0
+  - 0
+  clock_angle: 15.2000 degree
+  velocity:
+    vector:
+    - -6.2057434495531165 ft/s
+    - -125.27562020925733 ft/s
+    - -2.2878820373705264 ft/s
+    statcast: true
+  scene:
+    temperature: 28.1 degC
+    pressure: 1008.4 hPa
+    humidity: 24 percent
+training:
+  ax: 10.978144 ft/s**2
+  ay: 21.760047 ft/s**2
+  az: -31.901993 ft/s**2
+  plate_x: 0.144878 ft
+  plate_z: 2.447494 ft
+metadata:
+  pitch_type: CH
+  pitcher: Cristopher Sánchez
+  game_date: '2026-06-20'
+  pitch_count: 38

@@ -30,3 +30,8 @@ training:
   az: -37.271768 ft/s**2
   plate_x: -0.685196 ft
   plate_z: 1.515010 ft
+metadata:
+  pitch_type: CH
+  pitcher: Logan Webb
+  game_date: '2026-06-14'
+  pitch_count: 90

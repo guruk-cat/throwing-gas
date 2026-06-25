@@ -18,7 +18,7 @@ launch:
     vector:
     - -1.1159536701924146 ft/s
     - -145.15691194425662 ft/s
-    - -6.035774647583232 ft/s
+    - -6.0357746475832315 ft/s
     statcast: true
   scene:
     temperature: 24.9 degC
@@ -30,3 +30,8 @@ training:
   az: -15.196213 ft/s**2
   plate_x: 0.769512 ft
   plate_z: 2.936333 ft
+metadata:
+  pitch_type: SI
+  pitcher: Aroldis Chapman
+  game_date: '2026-06-18'
+  pitch_count: 13

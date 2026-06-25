@@ -16,7 +16,7 @@ launch:
   clock_angle: -28.4000 degree
   velocity:
     vector:
-    - -2.3624484533138834 ft/s
+    - -2.362448453313883 ft/s
     - -130.91561062002916 ft/s
     - -1.4527945023562068 ft/s
     statcast: true
@@ -30,3 +30,8 @@ training:
   az: -15.959243 ft/s**2
   plate_x: 0.569328 ft
   plate_z: 4.151500 ft
+metadata:
+  pitch_type: FF
+  pitcher: Clayton Kershaw
+  game_date: '2025-09-28'
+  pitch_count: 85

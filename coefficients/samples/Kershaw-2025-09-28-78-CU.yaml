@@ -30,3 +30,8 @@ training:
   az: -42.284670 ft/s**2
   plate_x: 0.239670 ft
   plate_z: 2.629232 ft
+metadata:
+  pitch_type: CU
+  pitcher: Clayton Kershaw
+  game_date: '2025-09-28'
+  pitch_count: 78

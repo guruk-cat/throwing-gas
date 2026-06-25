@@ -105,6 +105,22 @@ def _build_training(row):
     }
 
 
+def _build_metadata(row):
+    # Identifying info for debugging a config. pitch_count is the pitch's position
+    # in the game for this pitcher: fetch_pitches() returns a chronological,
+    # reset-indexed df, so row.name (0-based) + 1 is that count.
+    name = str(row.get('player_name', '')).strip()
+    if ',' in name:                       # Statcast gives "Last, First"
+        last, first = (p.strip() for p in name.split(',', 1))
+        name = f"{first} {last}"
+    return {
+        'pitch_type': str(row.get('pitch_type', 'UNK')),
+        'pitcher':    name,
+        'game_date':  str(row.get('game_date', ''))[:10],
+        'pitch_count': int(row.name) + 1,
+    }
+
+
 _STATS_API = "https://statsapi.mlb.com/api/v1"
 _ARCHIVE_API = "https://archive-api.open-meteo.com/v1/archive"
 
@@ -229,7 +245,7 @@ def print_pitch_list(df, pitcher):
     
     print(f"\n****** end of list ******")
 
-def pitch_to_config(row, height, arm_slot_override=None, include_training=False, include_scene=False):
+def pitch_to_config(row, height, arm_slot_override=None, include_training=False, include_scene=False, include_metadata=False):
     handedness = 'right' if row['p_throws'] == 'R' else 'left'
     handedness_num = 1 if row['p_throws'] == 'R' else -1
     arm_slot_float = 0.0
@@ -296,5 +312,7 @@ def pitch_to_config(row, height, arm_slot_override=None, include_training=False,
         cfg['launch']['scene'] = _build_scene(row)
     if include_training:
         cfg['training'] = _build_training(row)
-    
+    if include_metadata:
+        cfg['metadata'] = _build_metadata(row)
+
     return cfg

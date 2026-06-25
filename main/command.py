@@ -155,12 +155,12 @@ def file_name_for(row, i, include_slug=False):
         name = f"{pitcher_slug}-{date_slug}-{name}"
     return name
 
-def write_configs(df, pitches, height, include_scene, out_dir, include_slug=False):
+def write_configs(df, pitches, height, include_scene, include_meta, out_dir, include_slug=False):
     saved_pitches = 0
     for i in pitches:
         row = df.iloc[i]
         try:
-            config = pitch_to_config(row, height, include_training=include_training_data, include_scene=include_scene)
+            config = pitch_to_config(row, height, include_training=include_training_data, include_scene=include_scene, include_metadata=include_meta)
         except ValueError as e:
             print(f"  Skipping pitch #{i + 1}: {e}")
             continue
@@ -238,6 +238,7 @@ def fetch_only(inject=None):
 
     # Run once for the entire request
     include_scene = yes_or_no("Fetch and include weather info?")
+    include_metadata = yes_or_no("Include metadata in each config?")
     consolidate_output = yes_or_no("Consolidate output into one folder?")
     if consolidate_output:
         out_dir_name = simple_question(f"Output folder name? It will be {config_parent}/<your-folder-name>")
@@ -272,7 +273,7 @@ def fetch_only(inject=None):
         else:
             pitches = range(len(df))
 
-        saved_pitches = write_configs(df, pitches, height, include_scene, out_dir, include_slug=consolidate_output)
+        saved_pitches = write_configs(df, pitches, height, include_scene, include_metadata, out_dir, include_slug=consolidate_output)
         results_saved.append((saved_pitches, pitcher))
 
     clear_cli()

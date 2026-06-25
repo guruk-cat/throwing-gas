@@ -16,7 +16,7 @@ launch:
   clock_angle: 200.8000 degree
   velocity:
     vector:
-    - 3.108648405825737 ft/s
+    - 3.1086484058257375 ft/s
     - -123.29013577479743 ft/s
     - -0.9767612313624314 ft/s
     statcast: true
@@ -30,3 +30,8 @@ training:
   az: -32.701764 ft/s**2
   plate_x: 0.167938 ft
   plate_z: 1.531111 ft
+metadata:
+  pitch_type: ST
+  pitcher: Logan Webb
+  game_date: '2026-06-14'
+  pitch_count: 82

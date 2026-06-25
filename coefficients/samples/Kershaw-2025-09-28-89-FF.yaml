@@ -18,7 +18,7 @@ launch:
     vector:
     - -2.5069232245301287 ft/s
     - -127.32661447607836 ft/s
-    - -3.359919216797924 ft/s
+    - -3.3599192167979237 ft/s
     statcast: true
   scene:
     temperature: 18.5 degC
@@ -30,3 +30,8 @@ training:
   az: -13.910946 ft/s**2
   plate_x: 0.857461 ft
   plate_z: 3.409704 ft
+metadata:
+  pitch_type: FF
+  pitcher: Clayton Kershaw
+  game_date: '2025-09-28'
+  pitch_count: 89

@@ -30,3 +30,8 @@ training:
   az: -43.039191 ft/s**2
   plate_x: 0.069199 ft
   plate_z: -0.014604 ft
+metadata:
+  pitch_type: CU
+  pitcher: Yoshinobu Yamamoto
+  game_date: '2026-06-20'
+  pitch_count: 14

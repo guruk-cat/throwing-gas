@@ -16,7 +16,7 @@ launch:
   clock_angle: -19.1000 degree
   velocity:
     vector:
-    - -4.46887665404264 ft/s
+    - -4.4688766540426395 ft/s
     - -145.74025729548896 ft/s
     - -7.610917431560717 ft/s
     statcast: true
@@ -30,3 +30,8 @@ training:
   az: -10.920874 ft/s**2
   plate_x: -0.726862 ft
   plate_z: 2.589498 ft
+metadata:
+  pitch_type: SI
+  pitcher: Aroldis Chapman
+  game_date: '2026-06-18'
+  pitch_count: 18

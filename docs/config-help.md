@@ -1,6 +1,6 @@
 # Configuration Reference
 
-A pitch config file is a YAML document that configures a single pitch. It has up to three top-level blocks: `launch` (required), `simulation` (optional), and `training` (optional). All physical quantities are strings parsed by `pint`, and units can be in any compatible form (e.g. `"97 mph"`, `"43.3 m/s"`).
+A pitch config file is a YAML document that configures a single pitch. It has up to four top-level blocks: `launch` (required), `simulation` (optional), `training` (optional), and `metadata` (optional). All physical quantities are strings parsed by `pint`, and units can be in any compatible form (e.g. `"97 mph"`, `"43.3 m/s"`).
 
 A "pitch config" file is different from a "list config" file, which is used for producing batches of multiple pitch configs. See [CLI help](./cli-help.md) for details on the latter.
 
@@ -144,7 +144,18 @@ This block can also contain `plate_x` and `plate_z` from Statcast data. These ar
 
 The block is not read by `launch.py` or `Simulation` — ignored outside the optimizer.
 
-## 4. Full example
+## 4. `metadata`
+
+Optional block written by `statcast_to_config.py` / `command.py` to identify where a config came from. 
+
+| Key | Type | Description |
+|---|---|---|
+| `pitch_type` | string | Two-letter Statcast pitch-type abbreviation (e.g. `FF`, `SL`). |
+| `pitcher` | string | Pitcher name, as `First Last`. |
+| `game_date` | string | Game date, `YYYY-MM-DD`. |
+| `pitch_count` | int | The pitch's position in the game for this pitcher (1-based, chronological). |
+
+## 5. Full example
 
 ```yaml
 launch:

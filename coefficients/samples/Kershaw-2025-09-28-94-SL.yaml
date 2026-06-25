@@ -30,3 +30,8 @@ training:
   az: -24.086424 ft/s**2
   plate_x: -0.563770 ft
   plate_z: 0.848551 ft
+metadata:
+  pitch_type: SL
+  pitcher: Clayton Kershaw
+  game_date: '2025-09-28'
+  pitch_count: 94

@@ -30,3 +30,8 @@ training:
   az: -12.688979 ft/s**2
   plate_x: 0.513479 ft
   plate_z: 1.494767 ft
+metadata:
+  pitch_type: FF
+  pitcher: Gerrit Cole
+  game_date: '2026-06-09'
+  pitch_count: 40

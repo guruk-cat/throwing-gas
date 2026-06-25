@@ -18,7 +18,7 @@ launch:
     vector:
     - 4.877399330832078 ft/s
     - -127.34111555894432 ft/s
-    - -2.6260168743696397 ft/s
+    - -2.6260168743696393 ft/s
     statcast: true
   scene:
     temperature: 20.3 degC
@@ -30,3 +30,8 @@ training:
   az: -29.445080 ft/s**2
   plate_x: 0.443843 ft
   plate_z: 1.986741 ft
+metadata:
+  pitch_type: SL
+  pitcher: Yoshinobu Yamamoto
+  game_date: '2026-06-20'
+  pitch_count: 29

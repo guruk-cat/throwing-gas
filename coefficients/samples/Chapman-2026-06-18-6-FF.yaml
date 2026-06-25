@@ -30,3 +30,8 @@ training:
   az: -13.198588 ft/s**2
   plate_x: -0.406672 ft
   plate_z: 3.144065 ft
+metadata:
+  pitch_type: FF
+  pitcher: Aroldis Chapman
+  game_date: '2026-06-18'
+  pitch_count: 6
