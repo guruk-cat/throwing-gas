@@ -43,7 +43,7 @@ One thing we could do, in order to avoid the complicated physics of turbulence, 
 
 $$ C = a \cdot v^0 + b \cdot v^1 + c \cdot v^2 + d \cdot v^3 + ...$$
 
-and perform gradient descents on partial derivatives of an error function in respect to each of those $a$, $b$, $c$, ... coefficients. I'm not sure how fruitful this would be. Frankly, it feels like a brute force solution. But we can try it, nonetheless.
+and minimize an error function in respect to each of those $a$, $b$, $c$, ... coefficients. I'm not sure how fruitful this would be. Frankly, it feels like a brute force solution. But we can try it, nonetheless.
 
 ### 2.2. Air density
 
@@ -78,5 +78,6 @@ $$ \vec{F}_{magnus} = \beta \cdot \rho \cdot \lvert \vec{v} \rvert^2 \cdot \vec{
 It's important to remember that, if we are considering the problems in §2.1., $\alpha$ and $\beta$ are no longer empirically determined *constants*, but are rather empirically determined *functions* of velocity. The coefficients for higher powers of $v$ in the arbitrary polynomial (so, $d$ and onwards), will probably be computed to be near-zero. In other words, the drag and magnus coefficients will probably not turn out to be functions of $v^3$ or higher powers of $v$. But because we're estimating the effects of vortex flows and turbulences left behind the ball, I don't think it is unreasonable to include those higher-power terms for now.
 
 ## 3. Methods
+### 3.1. Scalar coefficients
 
-To be written after code implementation
+For the scalar version of the coefficieints $\alpha$ and $\beta$, we simply minimize a squared error function $E$. `Simulation.point_run()` takes a state vector and interates force equation over *one time step*, returning the instantaneous accleeration vector at that point. We use this to compute $dv/dt$ at the 50-feet Statcast tracking location, since that is where the `ax`, `ay`, and `az` vectors are recorded. We take the residual from those tracked vectors to the predicted vectors, and try to minimize them.
