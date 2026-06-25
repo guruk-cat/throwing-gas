@@ -111,3 +111,44 @@ $$ k_i = - \frac{B_i}{A_i} $$
 What becomes tricky over a whole batch of samples, however, is that different samples have different $\vec{A}_i$, and thus the prediction's *sensitivity* to $k$ is different. To address this, instead of taking a simple mean, we take a *weighted average*, each sample weighted by $A_i^2$ so that noisy samples are not as much trusted. (This is, in the end result, identical to making $E$ a squared error function.) Hence, we finally have:
 
 $$ k_{pred} = -\frac{\sum_{i=1}^n A_i B_i}{\sum_{i=1}^n A_i^2} $$
+
+See `coefficients/coefficient.py` for the implementation.
+
+### 3.2. Results and Suggestions
+
+The two scalar coefficients were computed back-to-back, each starting at the same intial arbitrary value. Because the $k$ value that yields the minimum error can be entirely isolated from the $k$-independent terms of the physics equation (unlike in gradient descent), this one-time compute suffices, and iterating the alternation does not reduce the error.
+
+Terminal output:
+
+```
+samples: 147 pitches loaded.
+
+computing k for drag...
+computing RMS error...
+FINAL:
+  K         = 6.30816026e-04 (meter ** 2)
+  RMS       = 2.70451054e+01 (meter ** 2)
+
+computing k for magnus...
+computing RMS error...
+FINAL:
+  K         = 1.37800775e-06 (meter ** 2 * second)
+  RMS       = 2.03637249e+00 (meter ** 2 * second)
+
+Computing displacement error...
+Avg. Δx (all samples)    : 5.7741e+00 (inch)
+  Δx avg. for fastballs  : 4.9095e+00 (inch)
+  Δx avg. for offspeeds  : 5.3649e+00 (inch)
+  Δx avg. for curveballs : 4.9923e+00 (inch)
+  Δx avg. for sliders    : 8.8195e+00 (inch)
+```
+
+First, these errors are the best I've seen so far during this project. The lowest one I had gotten previously was 2.3538 (m/s²), before air density was factored out of the unknown coefficient (see [old optimizer results](../legacy/docs/k-results.md))
+
+The error is noticeably larger for offspeeds, and *significantly* larger for sliders. This may have to do with gyro spin, since both of those pitches have gyro spin that affects the trajectory of the ball as it nears the plate (i.e., as its velocity vector gains more components in the $x$ and $z$ directions).
+
+Putting aside that, however, the fastballs and curveballs (which have more straight-forward spin axes) still present average errors that are too large to be satisfactory. Running the script with the `--details` flag shows that some of those pitches are only off by an inch or so, but stuff like sinkers (which again has some degree of gyro spin) skew the average. I do wonder if the "effective spin" variable in Statcast trackings could be used, in conjunction with the regular spin rate, to back-compute the complete, three-dimensional spin vector.
+
+## 4. Polynomial
+
+Not implemented yet.

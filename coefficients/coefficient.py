@@ -19,9 +19,19 @@ const_units = {
     "air density"           : "kg per cubic meter",
     "displacement err"      : "inch"
 }
+const_units['alpha'] = (Quant(1, const_units["alpha absorbs all"]) / Quant(1, const_units["air density"])).to_base_units().units
+const_units['beta'] = (Quant(1, const_units["beta absorbs all"]) / Quant(1, const_units["air density"])).to_base_units().units
 
-plate_y = Quant(8.5, "inch")        # middle of plate; Statcast 2026+
+plate_y     = Quant(8.5, "inch")    # middle of plate; Statcast 2026+
+fastballs   = ['FF', 'SI', 'FC']
+off_speeds  = ['CH', 'FS', 'FO', 'SC']
+curveballs  = ['CU', 'KC', 'CS']
+sliders     = ['SL', 'ST', 'SV']
 
+# shared sim instance
+sim = Simulation()
+sim.config.magnus_coefficient = Quant(1.0e-05, const_units['beta'])
+sim.config.drag_coefficient   = Quant(1.0e-05, const_units['alpha']) 
 
 
 # MATH HELPERS
@@ -58,9 +68,9 @@ class Coefficient():
         self.attr = f"{kind}_coefficient"
 
         if kind == 'magnus':
-            self.unit = (Quant(1, const_units["beta absorbs all"]) / Quant(1, const_units["air density"])).to_base_units().units
+            self.unit = const_units['beta']
         elif kind == 'drag':
-            self.unit = (Quant(1, const_units["alpha absorbs all"]) / Quant(1, const_units["air density"])).to_base_units().units
+            self.unit = const_units['alpha']
 
         if not complex:
             self.value      = init_value
@@ -101,7 +111,6 @@ def find_scalar(kind, cfgs):
         launch = Configuration()
         launch.configure(config['launch'])
 
-        sim = Simulation()
         setattr(sim.config, k_0.attr, Quant(k_0.get_value(), k_0.unit))
         pred_0 = sim.point_run(launch)
         err_0 = pred_0 - ref
@@ -123,24 +132,26 @@ def find_scalar(kind, cfgs):
     for config, ref in zip(cfgs, refs):
         launch = Configuration()
         launch.configure(config['launch'])
-        sim = Simulation()
+
+        # The shared sim's coefficient is reset here
         setattr(sim.config, k.attr, Quant(k.get_value(), k.unit))
         pred = sim.point_run(launch)
         rms_errs.append(numpy.sqrt(squared_err(pred, ref)))
 
     return k, numpy.mean(numpy.array(rms_errs))
 
-def check_goferr(k, cfgs):
-    new_coefficient = Quant(k.get_value(), k.unit)
+def check_goferr(cfgs, details=False):
 
     i = 1
     total = len(cfgs)
     errs = []
+    full_list = []
     plates = extract_plate(cfgs)
     for config, plate in zip(cfgs, plates):
-        print(f"  {i}/{total}")
-        sim = Simulation()
-        setattr(sim.config, k.attr, new_coefficient)
+        if details:
+            print(f"\n{i}/{total}")
+        else:
+            print(f"  {i}/{total}")
         launch = Configuration()
         launch.configure(config['launch'])
         trajectory = sim.run(launch)
@@ -149,37 +160,69 @@ def check_goferr(k, cfgs):
         err = numpy.linalg.norm(plate - plate_pred)
         errs.append(err)
         i += 1
-        delete_lines(1)
 
-    return numpy.mean(numpy.array(errs))
+        md = config['metadata']
+        pitch_type      = md['pitch_type']
+        pitcher_name    = md['pitcher']
+        pitch_count     = md['pitch_count']
+        game_date       = md['game_date']
+        full_list.append([pitch_type, pitcher_name, pitch_count, game_date, err])
+        
+        if details:
+            print(f"  Pitch type    : {pitch_type}")
+            print(f"  Identifier    : {pitcher_name}, #{pitch_count}, on {game_date}")
+            print(f"  Error         : {Quant(err, 'meter').to('inch').magnitude:.4e} inches")
+        else:
+            delete_lines(1)
+
+    return numpy.mean(numpy.array(errs)), full_list
+
+def run(cfgs, kind, complex, goferr, details):
+    if complex:
+        new_coefficient = None
+    else:
+        new_coefficient, err_rms = find_scalar(kind, cfgs)
+    print(f"FINAL:")
+    print(f"  K         = {new_coefficient.get_value():.8e} ({new_coefficient.unit})")
+    print(f"  RMS       = {err_rms:.8e} ({new_coefficient.unit})")
+
+    return new_coefficient
 
 def main():
     parse = argparse.ArgumentParser(description="Optimize coefficients via gradient descent.")
-    parse.add_argument('type', choices=['magnus', 'drag'], help="Which coefficient to optimize")
+    parse.add_argument('type', choices=['magnus', 'drag', 'alternate'], help="Which coefficient to optimize")
     parse.add_argument('path', type=pathlib.Path, help="Relative path from repo root to directory holding config files")
     parse.add_argument('--complex', action='store_true', help="Coefficient is a polynomial of velocity")
     parse.add_argument('--goferr', action='store_true', help="Check good ole-fashioned error after determining K")
+    parse.add_argument('--details', action='store_true', help="Print details for GOFErr")
     args = parse.parse_args()
     clear_cli()
 
     samples_dir = repo_root / args.path
     cfgs = load_dir(samples_dir, load_training=True)
-
-    if args.complex:
-        new_coefficient = None
+    if args.type == 'alternate':
+        print("")
+        run(cfgs, 'drag', args.complex, args.goferr, args.details)
+        print("")
+        run(cfgs, 'magnus', args.complex, args.goferr, args.details)
     else:
-        new_coefficient, err = find_scalar(args.type, cfgs)
-    print(f"\nFINAL:")
-    print(f"  K         = {new_coefficient.get_value():.8e} ({new_coefficient.unit})")
-    print(f"  RMS       = {err:.8e} ({new_coefficient.unit})")
+        run(cfgs, args.type, args.complex, args.goferr, args.details)
 
     if args.goferr:
         print("\nComputing displacement error...")
-        error = check_goferr(new_coefficient, cfgs)
-        error = Quant(error, 'meter').to('inch').magnitude
-        print(f"  Avg. Δx   =  {error:.4e} {const_units['displacement err']}")
+        error, err_details = check_goferr(cfgs, args.details)
+        error = Quant(error, 'meter').to(const_units['displacement err']).magnitude
+        print(f"Avg. Δx (all samples)    : {error:.4e} ({const_units['displacement err']})")
 
-
+        err_f = [row[-1] for row in err_details if row[0] in fastballs]
+        err_o = [row[-1] for row in err_details if row[0] in off_speeds]
+        err_c = [row[-1] for row in err_details if row[0] in curveballs]
+        err_s = [row[-1] for row in err_details if row[0] in sliders]
+        filtered = [('fastballs ', err_f), ('offspeeds ', err_o), ('curveballs', err_c), ('sliders   ', err_s)]
+        
+        for name, filtered_errs in filtered:
+            filtered_mean = Quant(numpy.mean(filtered_errs), 'meter').to(const_units['displacement err']).magnitude if filtered_errs else float('nan')
+            print(f"  Δx avg. for {name} : {filtered_mean:.4e} ({const_units['displacement err']})")
 
 if __name__ == '__main__':
     main()
