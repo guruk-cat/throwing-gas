@@ -7,7 +7,7 @@ import numpy
 repo_root = pathlib.Path(__file__).parent.parent
 sys.path.insert(0, str(repo_root / 'main'))
 from phys import Simulation, Configuration
-from config_io import load_dir, extract_true_acc, clear_cli, extract_plate
+from config_io import load_dir, extract_true_acc, clear_cli, extract_plate, delete_lines
 
 # UNITS and CONSTANTS
 ureg = pint.UnitRegistry()
@@ -86,7 +86,49 @@ class Coefficient():
             sum += term_coeff * (v ** i)
         return sum
 
+def find_scalar(kind, cfgs):
+    delta = 1.0e-4
 
+    k_0 = Coefficient(kind, False)
+    k_delta = Coefficient(kind, False)
+    k_0.set_value(0)
+    k_delta.set_value(delta)
+    refs = extract_true_acc(cfgs)
+    A, B = [], []
+
+    print(f"computing k for {kind}...")
+    for config, ref in zip(cfgs, refs):
+        launch = Configuration()
+        launch.configure(config['launch'])
+
+        sim = Simulation()
+        setattr(sim.config, k_0.attr, Quant(k_0.get_value(), k_0.unit))
+        pred_0 = sim.point_run(launch)
+        err_0 = pred_0 - ref
+
+        setattr(sim.config, k_delta.attr, Quant(k_delta.get_value(), k_delta.unit))
+        pred_1 = sim.point_run(launch)
+        err_1 = pred_1 - ref
+
+        A.append((err_1 - err_0) / delta)
+        B.append(err_0)
+    
+    A = numpy.array(A)
+    B = numpy.array(B)
+    k = Coefficient(kind, False)
+    k.set_value(-1 * numpy.sum(A*B)/numpy.sum(A*A))
+
+    rms_errs = []
+    print(f"computing RMS error...")
+    for config, ref in zip(cfgs, refs):
+        launch = Configuration()
+        launch.configure(config['launch'])
+        sim = Simulation()
+        setattr(sim.config, k.attr, Quant(k.get_value(), k.unit))
+        pred = sim.point_run(launch)
+        rms_errs.append(numpy.sqrt(squared_err(pred, ref)))
+
+    return k, numpy.mean(numpy.array(rms_errs))
 
 def check_goferr(k, cfgs):
     new_coefficient = Quant(k.get_value(), k.unit)
@@ -96,7 +138,7 @@ def check_goferr(k, cfgs):
     errs = []
     plates = extract_plate(cfgs)
     for config, plate in zip(cfgs, plates):
-        print(f"{i}/{total}")
+        print(f"  {i}/{total}")
         sim = Simulation()
         setattr(sim.config, k.attr, new_coefficient)
         launch = Configuration()
@@ -107,6 +149,7 @@ def check_goferr(k, cfgs):
         err = numpy.linalg.norm(plate - plate_pred)
         errs.append(err)
         i += 1
+        delete_lines(1)
 
         # DEBUG
         # print(f"  Plate reference   : {plate}")
@@ -127,17 +170,20 @@ def main():
 
     samples_dir = repo_root / args.path
     cfgs = load_dir(samples_dir, load_training=True)
-    true_acc = extract_true_acc(cfgs)
+
     if args.complex:
         new_coefficient = None
     else:
-        new_coefficient = None
+        new_coefficient, err = find_scalar(args.type, cfgs)
+    print(f"\nFINAL:")
+    print(f"  K         = {new_coefficient.get_value():.8e} ({new_coefficient.unit})")
+    print(f"  RMS       = {err:.8e} ({new_coefficient.unit})")
 
     if args.goferr:
-        print("Computing displacement error...")
+        print("\nComputing displacement error...")
         error = check_goferr(new_coefficient, cfgs)
         error = Quant(error, 'meter').to('inch').magnitude
-        print(f"Good ole-fashioned error: {error} {const_units['displacement err']}")
+        print(f"  Avg. Δx   =  {error:.4e} {const_units['displacement err']}")
 
 
 

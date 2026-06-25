@@ -77,7 +77,37 @@ $$ \vec{F}_{magnus} = \beta \cdot \rho \cdot \lvert \vec{v} \rvert^2 \cdot \vec{
 
 It's important to remember that, if we are considering the problems in §2.1., $\alpha$ and $\beta$ are no longer empirically determined *constants*, but are rather empirically determined *functions* of velocity. The coefficients for higher powers of $v$ in the arbitrary polynomial (so, $d$ and onwards), will probably be computed to be near-zero. In other words, the drag and magnus coefficients will probably not turn out to be functions of $v^3$ or higher powers of $v$. But because we're estimating the effects of vortex flows and turbulences left behind the ball, I don't think it is unreasonable to include those higher-power terms for now.
 
-## 3. Methods
-### 3.1. Scalar coefficients
+## 3. Scalar coefficients
+### 3.1. Methods
 
-For the scalar version of the coefficieints $\alpha$ and $\beta$, we simply minimize a squared error function $E$. `Simulation.point_run()` takes a state vector and interates force equation over *one time step*, returning the instantaneous accleeration vector at that point. We use this to compute $dv/dt$ at the 50-feet Statcast tracking location, since that is where the `ax`, `ay`, and `az` vectors are recorded. We take the residual from those tracked vectors to the predicted vectors, and try to minimize them.
+For the scalar version of the coefficieints $\alpha$ and $\beta$, we simply minimize an error function $E$. `Simulation.point_run()` takes a state vector and interates the force equation over *one time step*, returning the instantaneous accleeration vector at that point. We use this to compute $dv/dt$ at the 50-feet Statcast tracking location, since that is where the `ax`, `ay`, and `az` vectors are recorded in Statcast. We take the residual from those tracked vectors to the predicted vectors, and try to minimize the residual.
+
+The net force acting on the ball has three terms:
+
+$$ \vec{F}_{net} = \vec{F}_{gravity} + \vec{F}_{drag} + \vec{F}_{magnus} $$
+
+Both $\alpha$ and $\beta$ enter the equation linearly. Moreover, we can assume mass stays constant (baseball mass) and just work with acceleration, since that's the reference unit from Statcast. For *each* unknown coefficient (which we'll call $k$ when referring to either one or the other) the acceleration predicted by the simulator can be expressed as follows:
+
+$$ \vec{a} = \vec{A} \cdot k + \vec{C} $$
+
+where $A$ is the force term $F_k$ divided by $k$, thus leaving some function of velocity, spin, air density, and so forth; and $C$ is simply the $k$-independent remainders of the equation, including gravity. We can subtract the Statcast reference vector to obtain the residual:
+
+$$ \vec{a}_{pred} - \vec{a}_{ref} = \vec{A} \cdot k + \vec{C}- \vec{a}_{ref} $$
+
+and let $\vec{B} = \vec{C}- \vec{a}_{ref} $, thus obtaining:
+
+$$ E(k) = \vec{A} \cdot k + \vec{B} $$
+
+Intuitively, we can understand $\vec{A}$ as how much $k$ affects the prediction, and $\vec{B}$ as $k$-independent errors. Both $\vec{A}$ and $\vec{B}$ can be empricially determined from the simulation given a config sample. For each sample $i$, we run two simulations, one with $k=0$ and one with $k=1$. Then, we get:
+
+$$ E_i(0) = \vec{B}_i $$
+$$ E_i(1) = \vec{A}_i + \vec{B}_i $$
+$$ \vec{A}_i = E_i(1) - E_i(0) $$
+
+The goal is to get $E$ as close to zero as possible. For individual samples, we can simply set $E = 0$, which gives us:
+
+$$ k_i = - \frac{B_i}{A_i} $$
+
+What becomes tricky over a whole batch of samples, however, is that different samples have different $\vec{A}_i$, and thus the prediction's *sensitivity* to $k$ is different. To address this, instead of taking a simple mean, we take a *weighted average*, each sample weighted by $A_i^2$ so that noisy samples are not as much trusted. (This is, in the end result, identical to making $E$ a squared error function.) Hence, we finally have:
+
+$$ k_{pred} = -\frac{\sum_{i=1}^n A_i B_i}{\sum_{i=1}^n A_i^2} $$

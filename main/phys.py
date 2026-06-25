@@ -24,8 +24,8 @@ _MOUND_HEIGHT_M = 0.254   # standard mound height above field level (10 in)
 
 # Quick-acess defaults
 DEFAULT_TIME_STEP = Q_(0.5, 'ms')
-DEFAULT_MAGNUS_COEFFICIENT = Q_(9.1343e-07, 'kg * s / m')
-DEFAULT_DRAG_COEFFICIENT = Q_(0.0007884037809624002, 'kg/m')
+DEFAULT_MAGNUS_COEFFICIENT = Q_(1.36437785e-06, 'kg * s / m')
+DEFAULT_DRAG_COEFFICIENT = Q_(6.27909955e-04, 'kg/m')
 DEFAULT_MAGNUS_MODEL = 'squared velocity'
 
 # Air density
@@ -288,7 +288,7 @@ class Simulation:
     # compute derivative of velo vector for one time step and return vector
     self.config.rho = Q_(launch_config.get_air_density(), 'kg/m**3')
     state = numpy.zeros(self.state_size)
-    state[4:7]  = launch_config.get_velocity()
+    state[4:7]  = launch_config.get_velocity(suppress_velo_correction=True)
     state[7:10] = launch_config.get_spin()
 
     dt = self.config.time_step.to('s').magnitude
@@ -534,7 +534,7 @@ class Configuration:
 
     return v50_ms - a * t
 
-  def get_velocity(self, unit=(ureg.meter/ureg.second)):
+  def get_velocity(self, unit=(ureg.meter/ureg.second), suppress_velo_correction=False):
     release_world, _, _ = self._resolve_geometry()
 
     v_release_ms = None  # set when velo_correction is applied
@@ -545,7 +545,7 @@ class Configuration:
     elif self.velocity_vector is not None:
       vv_ms = self.velocity_vector.to('m/s').magnitude if isinstance(self.velocity_vector, Q_) \
               else numpy.asarray(self.velocity_vector, dtype=float)
-      if self.velocity_is_statcast:
+      if self.velocity_is_statcast and not suppress_velo_correction:
         v_release_ms = self.velo_correction(vv_ms)
         direction    = v_release_ms / norm(v_release_ms)
       else:
