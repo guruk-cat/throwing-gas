@@ -1,0 +1,37 @@
+launch:
+  handedness: left
+  arm_slot: 58.3 degree
+  position:
+    height: 6 ft 4 in
+    release_pos:
+    - 1.76 ft
+    - 53.95 ft
+    - 6.05 ft
+  speed: 84.3 mph
+  spin: 2677.0 rpm
+  spin_axis:
+  - -1
+  - 0
+  - 0
+  clock_angle: -72.7000 degree
+  velocity:
+    vector:
+    - -3.855171231470059 ft/s
+    - -122.83986116635688 ft/s
+    - -2.056737666935241 ft/s
+    statcast: true
+  scene:
+    temperature: 18.5 degC
+    pressure: 1006.5 hPa
+    humidity: 65 percent
+training:
+  ax: -6.805521 ft/s**2
+  ay: 22.242727 ft/s**2
+  az: -25.761664 ft/s**2
+  plate_x: -0.517273 ft
+  plate_z: 2.978794 ft
+metadata:
+  pitch_type: SL
+  pitcher: Clayton Kershaw
+  game_date: '2025-09-28'
+  pitch_count: 64

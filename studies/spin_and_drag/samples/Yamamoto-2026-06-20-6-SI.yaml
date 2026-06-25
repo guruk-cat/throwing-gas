@@ -1,0 +1,37 @@
+launch:
+  handedness: right
+  arm_slot: 41.1 degree
+  position:
+    height: 5 ft 10 in
+    release_pos:
+    - -1.96 ft
+    - 54.05 ft
+    - 5.47 ft
+  speed: 96.1 mph
+  spin: 2291.0 rpm
+  spin_axis:
+  - -1
+  - 0
+  - 0
+  clock_angle: 17.9000 degree
+  velocity:
+    vector:
+    - 4.432165851029303 ft/s
+    - -139.934646358092 ft/s
+    - -4.18447397291476 ft/s
+    statcast: true
+  scene:
+    temperature: 20.3 degC
+    pressure: 995.5 hPa
+    humidity: 55 percent
+training:
+  ax: -16.907455 ft/s**2
+  ay: 28.659169 ft/s**2
+  az: -17.959942 ft/s**2
+  plate_x: -1.330208 ft
+  plate_z: 2.618923 ft
+metadata:
+  pitch_type: SI
+  pitcher: Yoshinobu Yamamoto
+  game_date: '2026-06-20'
+  pitch_count: 6

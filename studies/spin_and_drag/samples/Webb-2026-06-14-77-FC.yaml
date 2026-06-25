@@ -1,0 +1,37 @@
+launch:
+  handedness: right
+  arm_slot: 19.7 degree
+  position:
+    height: 6 ft 2 in
+    release_pos:
+    - -1.68 ft
+    - 53.44 ft
+    - 4.91 ft
+  speed: 91.4 mph
+  spin: 2261.0 rpm
+  spin_axis:
+  - -1
+  - 0
+  - 0
+  clock_angle: 6.3000 degree
+  velocity:
+    vector:
+    - 8.577257350804128 ft/s
+    - -133.00457336361018 ft/s
+    - -2.926692248914146 ft/s
+    statcast: true
+  scene:
+    temperature: 18.3 degC
+    pressure: 1013.9 hPa
+    humidity: 67 percent
+training:
+  ax: -4.338680 ft/s**2
+  ay: 23.334445 ft/s**2
+  az: -24.418247 ft/s**2
+  plate_x: 1.509985 ft
+  plate_z: 1.925039 ft
+metadata:
+  pitch_type: FC
+  pitcher: Logan Webb
+  game_date: '2026-06-14'
+  pitch_count: 77

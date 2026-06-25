@@ -1,0 +1,37 @@
+launch:
+  handedness: right
+  arm_slot: 38.8 degree
+  position:
+    height: 6 ft 4 in
+    release_pos:
+    - -2.43 ft
+    - 54.44 ft
+    - 5.88 ft
+  speed: 84.1 mph
+  spin: 2741.0 rpm
+  spin_axis:
+  - -1
+  - 0
+  - 0
+  clock_angle: 195.2000 degree
+  velocity:
+    vector:
+    - 3.8565486370768025 ft/s
+    - -122.4207939048275 ft/s
+    - -3.344433393109286 ft/s
+    statcast: true
+  scene:
+    temperature: 26.7 degC
+    pressure: 989.3 hPa
+    humidity: 68 percent
+training:
+  ax: 8.808484 ft/s**2
+  ay: 27.280251 ft/s**2
+  az: -42.585896 ft/s**2
+  plate_x: 0.119897 ft
+  plate_z: 0.568809 ft
+metadata:
+  pitch_type: KC
+  pitcher: Gerrit Cole
+  game_date: '2026-06-09'
+  pitch_count: 38

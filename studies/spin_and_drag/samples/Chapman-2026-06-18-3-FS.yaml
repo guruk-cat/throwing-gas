@@ -1,0 +1,37 @@
+launch:
+  handedness: left
+  arm_slot: 60.2 degree
+  position:
+    height: 6 ft 4 in
+    release_pos:
+    - 0.59 ft
+    - 53.19 ft
+    - 6.11 ft
+  speed: 88.3 mph
+  spin: 954.0 rpm
+  spin_axis:
+  - -1
+  - 0
+  - 0
+  clock_angle: 4.2000 degree
+  velocity:
+    vector:
+    - -0.2811150251772175 ft/s
+    - -128.6376453667844 ft/s
+    - -3.687093650432444 ft/s
+    statcast: true
+  scene:
+    temperature: 24.9 degC
+    pressure: 1000.6 hPa
+    humidity: 65 percent
+training:
+  ax: 9.539578 ft/s**2
+  ay: 25.782223 ft/s**2
+  az: -27.207110 ft/s**2
+  plate_x: 1.223091 ft
+  plate_z: 2.389500 ft
+metadata:
+  pitch_type: FS
+  pitcher: Aroldis Chapman
+  game_date: '2026-06-18'
+  pitch_count: 3

@@ -7,10 +7,8 @@ import functools
 import math
 import re
 import sys
-
 import pandas as pd
 import requests
-import urllib3
 
 try:
     from pybaseball import statcast_pitcher, playerid_lookup
@@ -18,21 +16,6 @@ try:
     pb_cache.enable()
 except ImportError:
     sys.exit("pybaseball is not installed. Run: pip install pybaseball")
-
-
-# TEMPORARY: remove this function (and its call in main) once SSL is resolved.
-# See --no-verify-ssl in the argparser.
-def _disable_ssl_verification():
-    urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
-    _orig = requests.Session.request
-    def _patched(self, method, url, **kwargs):
-        kwargs.setdefault('verify', False)
-        return _orig(self, method, url, **kwargs)
-    requests.Session.request = _patched
-    print("Warning: SSL verification disabled (--no-verify-ssl).", file=sys.stderr)
-
-
-_DEFAULT_HEIGHT = "6 ft 2 in"
 
 _LIST_COLS = [
     'pitch_type', 'release_speed', 'release_spin_rate', 
@@ -217,11 +200,7 @@ def fetch_pitcher_height(mlbam_id):
     r.raise_for_status()
     return _reshape_height(r.json()['people'][0]['height'])
 
-def fetch_pitches(pitcher_name, date, no_verify_ssl=True):
-    # Fetch all pitches for a pitcher on a date. 
-    # Returns a chronological DataFrame.
-    if no_verify_ssl:
-        _disable_ssl_verification()
+def fetch_pitches(pitcher_name, date):
     mlbam_id = _lookup_mlbam(pitcher_name)
     df = statcast_pitcher(date, date, player_id=mlbam_id)
     if df is None or df.empty:
