@@ -149,4 +149,41 @@ The error is noticeably larger for offspeeds, and *significantly* larger for sli
 
 Putting aside that, however, the fastballs and curveballs (which have more straight-forward spin axes) still present average errors that are too large to be satisfactory. Running the script with the `--details` flag shows that some of those pitches are only off by an inch or so, but stuff like sinkers (which again has some degree of gyro spin) skew the average. I do wonder if the "effective spin" variable in Statcast trackings could be used, in conjunction with the regular spin rate, to back-compute the complete, three-dimensional spin vector.
 
-## 4. Testing for Gyro Spin
+## 4. Testing for Gyro Spin Errors
+### 4.1. Issue
+
+Another possibile explanation for the huge slider errors, and the not-as-huge but still large changeup errors, is simply that there's too much spin being fed into the equation. In real life, a good portion of the total spin rate is gyro spin, which barely interacts in the cross product $\vec{\omega} \times \vec{v}$ unless the ball is nearing the plate and thus have a slightly larger $x$ or $z$ components in $\vec{v}. But I'm using the total spin rate to compute the initial spin vector. Hence, it may be that sliders are overbreaking while the rest is underbreaking, resulting in the overall ~5 inches of error.
+
+We can plot some of the sample pitches with `launch.py` and visually inspect them against the broadcast recording on Baseball Savant. Here's a slider thrown by Clayton Kershaw, first the broadcast footage:
+
+![kershaw's slider, real footage](imgs/kersh_slider_ref.png)
+
+And here's the simulated one, from the catcher's view. Direction of the Magnus force is shown with the green arrow:
+
+![same pitch, simulation](imgs/kersh_slider_sim.png)
+
+We can see that the simulated slider has more rise and more glove-side break than the actual pitch when it crosses the strike zone. So, the suspicion is supported. But to test this more robustly, I need to record the actual direction of the displacement errors during the compute, not just the magnitude. 
+
+### 4.2. Recording overbreaks and underbreaks
+
+`Simulator` already has an "extra" recording slot, named `Simulator.extra`; this can be configured to record the Magnus force by calling `Simulator.record_magnus()` before running a sim, and the record can be retrieved as `Simulator.extra.record`. 
+
+When computing the displacement error, if the direction of the error is roughly in the same direction as the Magnus force, we determine this as an overbreak; and if the direction of error is the opposite of the Magnus force, it's an underbreak.
+
+The test output is below, and it confirms the suspicion:
+
+```
+Δx avg. (all samples)    : 5.9004e+00 (inch)
+  
+Δx avg. for FASTBALLS    : 5.1883e+00 (inch)
+  Dominant break side    : underbreak (-58)
+  
+Δx avg. for OFFSPEEDS    : 5.4514e+00 (inch)
+  Dominant break side    : underbreak (-19)
+  
+Δx avg. for CURVEBALLS   : 5.5223e+00 (inch)
+  Dominant break side    : underbreak (-16)
+  
+Δx avg. for SLIDERS      : 8.3571e+00 (inch)
+  Dominant break side    : overbreak (26)
+```

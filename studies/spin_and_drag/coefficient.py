@@ -3,6 +3,7 @@ import pathlib
 import sys
 import pint
 import numpy
+import math
 
 repo_root = pathlib.Path(__file__).parent.parent.parent
 sys.path.insert(0, str(repo_root / 'main'))
@@ -24,9 +25,15 @@ const_units['beta'] = (Quant(1, const_units["beta absorbs all"]) / Quant(1, cons
 
 plate_y     = Quant(8.5, "inch")    # middle of plate; Statcast 2026+
 fastballs   = ['FF', 'SI', 'FC']
-off_speeds  = ['CH', 'FS', 'FO', 'SC']
+offspeeds  = ['CH', 'FS', 'FO', 'SC']
 curveballs  = ['CU', 'KC', 'CS']
 sliders     = ['SL', 'ST', 'SV']
+
+err_kind_str = {
+    1   : 'overbreak',
+    -1  : 'underbreak',
+    0   : 'near-orthogonal'
+}
 
 # shared sim instance
 sim = Simulation()
@@ -49,6 +56,10 @@ def crossing_point(traj):
     y = traj[:, 2]
     i = numpy.argmin(numpy.abs(y - plate_y.to_base_units().magnitude))
     return i
+
+def clock_angle(x, z):
+    angle = numpy.degrees(numpy.arctan2(x, z)) % 360
+    return int((angle + 15) // 30)
 
 
 
@@ -140,7 +151,7 @@ def find_scalar(kind, cfgs):
 
     return k, numpy.mean(numpy.array(rms_errs))
 
-def check_goferr(cfgs, details=False):
+def check_goferr(cfgs, detailed=False):
 
     i = 1
     total = len(cfgs)
@@ -148,36 +159,56 @@ def check_goferr(cfgs, details=False):
     full_list = []
     plates = extract_plate(cfgs)
     for config, plate in zip(cfgs, plates):
-        if details:
+        if detailed:
             print(f"\n{i}/{total}")
         else:
             print(f"  {i}/{total}")
         launch = Configuration()
         launch.configure(config['launch'])
+        sim.record_clean()  # must be cleaned since same instance is reused
+        sim.record_magnus()
         trajectory = sim.run(launch)
         plate_i = crossing_point(numpy.array(trajectory))
         plate_pred = numpy.array([trajectory[plate_i][1], trajectory[plate_i][3]])
-        err = numpy.linalg.norm(plate - plate_pred)
-        errs.append(err)
-        i += 1
+
+        err         = plate_pred - plate
+        magnus_xz   = numpy.array([sim.extra.record[plate_i][0], sim.extra.record[plate_i][2]])
+        cos_xz      = numpy.dot(err, magnus_xz) / (numpy.linalg.norm(err) * numpy.linalg.norm(magnus_xz))
+        if cos_xz > 0.1:
+            err_kind = 1    # overbreak
+        elif cos_xz < -0.1:
+            err_kind = -1   # underbreak
+        else:
+            err_kind = 0    # near-orthogonal
+
+        clock_angle_err = clock_angle(err[0], err[1])
+        clock_angle_magnus = clock_angle(magnus_xz[0], magnus_xz[1])
+
+        err = numpy.linalg.norm(err)    # magnitude for general report
+        errs.append(err) 
 
         md = config['metadata']
         pitch_type      = md['pitch_type']
         pitcher_name    = md['pitcher']
         pitch_count     = md['pitch_count']
         game_date       = md['game_date']
-        full_list.append([pitch_type, pitcher_name, pitch_count, game_date, err])
+        full_list.append([pitch_type, pitcher_name, pitch_count, game_date, err_kind, err])
         
-        if details:
+        if detailed:
             print(f"  Pitch type    : {pitch_type}")
-            print(f"  Identifier    : {pitcher_name}, #{pitch_count}, on {game_date}")
-            print(f"  Error         : {Quant(err, 'meter').to('inch').magnitude:.4e} inches")
+            print(f"  Identifier    : {pitcher_name}, #{pitch_count}, on {game_date}\n")
+            print(f"  Offshot       : {Quant(err, 'meter').to('inch').magnitude:.4e} inches")
+            print(f"    kind        : {err_kind_str[err_kind]}")
+            print(f"    disp. angle : {clock_angle_err} o'clock")
+            print(f"    magn. angle : {clock_angle_magnus} o'clock")
         else:
             delete_lines(1)
+        
+        i += 1
 
     return numpy.mean(numpy.array(errs)), full_list
 
-def run(cfgs, kind, complex, goferr, details):
+def run(cfgs, kind, complex):
     if complex:
         new_coefficient = None
     else:
@@ -190,39 +221,47 @@ def run(cfgs, kind, complex, goferr, details):
 
 def main():
     parse = argparse.ArgumentParser(description="Optimize coefficients via gradient descent.")
-    parse.add_argument('type', choices=['magnus', 'drag', 'alternate'], help="Which coefficient to optimize")
-    parse.add_argument('path', type=pathlib.Path, help="Relative path from repo root to directory holding config files")
+    parse.add_argument('-type', choices=['magnus', 'drag', 'alternate'], default='alternate', help="Which coefficient to optimize")
+    parse.add_argument('-path', type=pathlib.Path, help="Path to directory holding config files")
     parse.add_argument('--complex', action='store_true', help="Coefficient is a polynomial of velocity")
     parse.add_argument('--goferr', action='store_true', help="Check good ole-fashioned error after determining K")
-    parse.add_argument('--details', action='store_true', help="Print details for GOFErr")
+    parse.add_argument('--detailed', action='store_true', help="Print details for GOFErr")
     args = parse.parse_args()
     clear_cli()
 
-    samples_dir = repo_root / args.path
+    samples_dir = args.path.resolve()
     cfgs = load_dir(samples_dir, load_training=True)
     if args.type == 'alternate':
         print("")
-        run(cfgs, 'drag', args.complex, args.goferr, args.details)
+        run(cfgs, 'drag', args.complex)
         print("")
-        run(cfgs, 'magnus', args.complex, args.goferr, args.details)
+        run(cfgs, 'magnus', args.complex)
     else:
-        run(cfgs, args.type, args.complex, args.goferr, args.details)
+        run(cfgs, args.type, args.complex)
 
     if args.goferr:
         print("\nComputing displacement error...")
-        error, err_details = check_goferr(cfgs, args.details)
+        error, err_details = check_goferr(cfgs, args.detailed)
         error = Quant(error, 'meter').to(const_units['displacement err']).magnitude
-        print(f"Avg. Δx (all samples)    : {error:.4e} ({const_units['displacement err']})")
+        print(f"\nΔx avg. (all samples)    : {error:.4e} ({const_units['displacement err']})")
 
-        err_f = [row[-1] for row in err_details if row[0] in fastballs]
-        err_o = [row[-1] for row in err_details if row[0] in off_speeds]
-        err_c = [row[-1] for row in err_details if row[0] in curveballs]
-        err_s = [row[-1] for row in err_details if row[0] in sliders]
-        filtered = [('fastballs ', err_f), ('offspeeds ', err_o), ('curveballs', err_c), ('sliders   ', err_s)]
-        
-        for name, filtered_errs in filtered:
-            filtered_mean = Quant(numpy.mean(filtered_errs), 'meter').to(const_units['displacement err']).magnitude if filtered_errs else float('nan')
-            print(f"  Δx avg. for {name} : {filtered_mean:.4e} ({const_units['displacement err']})")
+        names = ['FASTBALLS ', 'OFFSPEEDS ', 'CURVEBALLS', 'SLIDERS   ']
+        pitches = [fastballs, offspeeds, curveballs, sliders]
+
+        # Deets: pitch_type, pitcher_name, pitch_count, game_date, err_kind, err
+        for name, pitch_type in zip(names, pitches):
+            filtered = [row for row in err_details if row[0] in pitch_type]
+            filtered_errs = [row[-1] for row in filtered]
+            filtered_err_mean = Quant(numpy.mean(filtered_errs), 'meter').to(const_units['displacement err']).magnitude if filtered_errs else float('nan')
+            print(f"  \nΔx avg. for {name}   : {filtered_err_mean:.4e} ({const_units['displacement err']})")
+            
+            break_type_filtered = [row[-2] for row in filtered]
+            break_type_agg = numpy.sum(numpy.array(break_type_filtered))
+            if break_type_agg != 0:
+                break_type_id = math.copysign(1, break_type_agg)
+            else:
+                break_type_id = 0
+            print(f"  Dominant break side    : {err_kind_str[break_type_id]} ({break_type_agg})")
 
 if __name__ == '__main__':
     main()
