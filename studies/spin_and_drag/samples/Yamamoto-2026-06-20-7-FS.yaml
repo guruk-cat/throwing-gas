@@ -1,3 +1,5 @@
+format:
+  type: statcast
 launch:
   handedness: right
   arm_slot: 35.9 degree
@@ -19,7 +21,6 @@ launch:
     - 9.373765622451897 ft/s
     - -134.26196293115876 ft/s
     - -2.686927258308246 ft/s
-    statcast: true
   scene:
     temperature: 20.3 degC
     pressure: 995.5 hPa

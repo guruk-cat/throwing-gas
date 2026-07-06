@@ -268,6 +268,7 @@ def pitch_to_config(row, height, arm_slot_override=None, include_training=False,
     vz = float(_require(row, 'vz0', 'velocity z'))
 
     cfg = {
+        'format': {'type': 'statcast'},
         'launch': {
             'handedness': handedness,
             'arm_slot': arm_slot_str,
@@ -283,7 +284,6 @@ def pitch_to_config(row, height, arm_slot_override=None, include_training=False,
             'clock_angle': f"{clock_angle:.4f} degree",
             'velocity': {
                 'vector': [f"{vx} ft/s", f"{vy} ft/s", f"{vz} ft/s"],
-                'statcast': True,
             },
         }
     }

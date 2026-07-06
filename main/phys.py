@@ -343,15 +343,15 @@ class Configuration:
     self.magnus_model = DEFAULT_MAGNUS_MODEL
 
   def configure(self, cfg):
-    # Accepts the full config dict (with a 'launch' block and optional
-    # 'simulation' block). For backward compatibility it also accepts a bare
-    # launch block.
-    if isinstance(cfg, dict) and 'launch' in cfg:
-      config = cfg['launch']
-      sim_block = cfg.get('simulation')
-    else:
-      config = cfg
-      sim_block = None
+    fmt = cfg.get('format', {})
+    config = cfg['launch']
+    sim_block = cfg.get('simulation')
+
+    # `format.type` selects the input grammar; absent defaults to manual.
+    fmt_type = fmt.get('type', 'manual')
+    if fmt_type not in ('statcast', 'manual'):
+      raise ValueError(f"format.type must be 'statcast' or 'manual', got {fmt_type!r}.")
+    self.velocity_is_statcast = (fmt_type == 'statcast')
 
     config_keys_used = []
 
@@ -391,8 +391,6 @@ class Configuration:
     if 'velocity' in config:
       vel = config['velocity']
       config_keys_used.append('velocity')
-      if 'statcast' in vel:
-        self.velocity_is_statcast = bool(vel['statcast'])
 
       if 'target' in vel:
         t = vel['target']

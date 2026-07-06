@@ -1,5 +1,6 @@
 # Gerrit Cole, 2026-05-27, pitch #5
-
+format:
+  type: statcast
 launch:
   handedness: right
   arm_slot: 42.9 degree
@@ -21,7 +22,6 @@ launch:
     - 2.358344441115718 ft/s
     - -119.8755949475307 ft/s
     - 2.39484902642794 ft/s
-    statcast: true
 training:
   ax: 8.933589 ft/s**2
   ay: 23.132932 ft/s**2
