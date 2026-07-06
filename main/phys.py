@@ -332,12 +332,15 @@ class Configuration:
     self.speed                = None       # Q_ scalar; if None, derived from velocity_vector norm
     self.aim_target           = None       # ndarray (world metres); mutually exclusive with velocity_vector
     self.velocity_vector      = None       # Q_ vector; mutually exclusive with aim_target
-    self.velocity_is_statcast = False      # if True, velocity_vector is at y=50ft and needs back-computation
+
+    # Grammar
+    self.format_type = 'manual'
 
     # Spin
-    self.spin        = Q_(0, 'rad/s')
-    self.spin_axis   = xhat.copy()         # unit vector in pitch-frame coordinates
-    self.clock_angle = Q_(0, 'degree')
+    self.spin_rate   = Q_(0, 'rad/s')
+    self.spin_angle  = None                # statcast: world-frame axis tilt in the x-z plane
+    self.spin_axis   = xhat.copy()         # manual: unit vector in pitch-frame coordinates
+    self.clock_angle = Q_(0, 'degree')     # manual
 
     # Magnus model (used by the force law and velo_correction)
     self.magnus_model = DEFAULT_MAGNUS_MODEL
@@ -351,7 +354,7 @@ class Configuration:
     fmt_type = fmt.get('type', 'manual')
     if fmt_type not in ('statcast', 'manual'):
       raise ValueError(f"format.type must be 'statcast' or 'manual', got {fmt_type!r}.")
-    self.velocity_is_statcast = (fmt_type == 'statcast')
+    self.format_type = fmt_type
 
     config_keys_used = []
 
@@ -363,8 +366,7 @@ class Configuration:
       ('arm_extension', 'arm_extension', parse_quantity),
       ('arm_length',    'arm_length',    parse_quantity),
       ('speed',         'speed',         parse_quantity),
-      ('spin',          'spin',          parse_quantity),
-      ('clock_angle',   'clock_angle',   parse_quantity),
+      ('spin_rate',     'spin_rate',     parse_quantity),
     ]:
       if key in config:
         setattr(self, attr, parser(config[key]))
@@ -404,10 +406,19 @@ class Configuration:
       else:
         raise ValueError("'velocity' must contain 'target' or 'vector'.")
 
-    if 'spin_axis' in config:
-      ax = numpy.asarray(config['spin_axis'], dtype=float)
-      self.spin_axis = ax / norm(ax)
-      config_keys_used.append('spin_axis')
+    # Spin direction: keys depend on format
+    if self.format_type == 'statcast':
+      if 'spin_angle' not in config:
+        raise ValueError("statcast format requires 'spin_angle'.")
+      self.spin_angle = parse_quantity(config['spin_angle'])
+      config_keys_used.append('spin_angle')
+    else:
+      if 'spin_axis' not in config or 'clock_angle' not in config:
+        raise ValueError("manual format requires 'spin_axis' and 'clock_angle'.")
+      self.spin_axis = numpy.asarray(config['spin_axis'], dtype=float)
+      self.spin_axis = self.spin_axis / norm(self.spin_axis)
+      self.clock_angle = parse_quantity(config['clock_angle'])
+      config_keys_used.extend(['spin_axis', 'clock_angle'])
 
     if 'scene' in config:
       self.configure_scene(config['scene'])
@@ -549,7 +560,7 @@ class Configuration:
         vv_ms = self.velocity_vector.to('m/s').magnitude 
       else:
         vv_ms = numpy.asarray(self.velocity_vector, dtype=float)
-      if self.velocity_is_statcast and not suppress_velo_correction:
+      if self.format_type == 'statcast' and not suppress_velo_correction:
         v_release_ms = self.velo_correction(vv_ms)
         direction    = v_release_ms / norm(v_release_ms)
       else:
@@ -565,8 +576,14 @@ class Configuration:
     return magnitude * direction
 
   def get_spin(self, unit=ureg.radian/ureg.second):
-    _, _, M  = self._resolve_geometry()
-    spin_ax  = self.spin_axis / norm(self.spin_axis)
-    clock_R  = rot_axis(yhat, self.clock_angle)
-    spin_dir = M @ (clock_R @ spin_ax)
-    return float(self.spin.to(unit).magnitude) * (spin_dir / norm(spin_dir))
+    magnitude = float(self.spin_rate.to(unit).magnitude)
+    if self.format_type == 'statcast':
+      # spin_angle is a world-frame tilt in the x-z plane
+      # counter-clockwise from +x (catcher's view)
+      # 0deg = topspin, 180deg = backspin.
+      t = self.spin_angle.to('radian').magnitude
+      spin_dir = numpy.array([numpy.cos(t), 0.0, numpy.sin(t)])
+    else:
+      _, _, M  = self._resolve_geometry()
+      spin_dir = M @ (rot_axis(yhat, self.clock_angle) @ (self.spin_axis / norm(self.spin_axis)))
+    return magnitude * (spin_dir / norm(spin_dir))

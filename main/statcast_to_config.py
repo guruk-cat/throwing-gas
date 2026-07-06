@@ -51,21 +51,6 @@ def _lookup_mlbam(full_name):
     return int(results.iloc[0]['key_mlbam'])
 
 
-def _clock_angle_from_statcast(spin_axis_deg, arm_slot, handedness_num):
-    '''
-    Convert Statcast spin_axis to simulator clock_angle.
-
-    Statcast: counter-clockwise from catcher's view, 0° = +X (topspin).
-    handedness_num: 1 for righty, -1 for lefty
-
-    Approximation: pitch frame ≈ world frame for X-Z components.
-    The pitcher's lateral release offset (~0.5 m) is small relative to the
-    ~16 m mound-to-plate distance, so the pitch frame's X-Z plane is 
-    nearly aligned with the world frame.
-    '''
-    return 180.0 - spin_axis_deg - handedness_num * (arm_slot - 90.0)
-
-
 def _require(row, col, label):
     val = row.get(col) if hasattr(row, 'get') else (row[col] if col in row.index else None)
     if val is None or (isinstance(val, float) and math.isnan(val)):
@@ -226,7 +211,6 @@ def print_pitch_list(df, pitcher):
 
 def pitch_to_config(row, height, arm_slot_override=None, include_training=False, include_scene=False, include_metadata=False):
     handedness = 'right' if row['p_throws'] == 'R' else 'left'
-    handedness_num = 1 if row['p_throws'] == 'R' else -1
     arm_slot_float = 0.0
 
     # Arm slot
@@ -250,22 +234,15 @@ def pitch_to_config(row, height, arm_slot_override=None, include_training=False,
     ry = float(_require(row, 'release_pos_y', 'release position y'))
     rz = float(_require(row, 'release_pos_z', 'release position z'))
 
-    # Speed
     speed = float(_require(row, 'release_speed', 'release speed'))
 
-    # Spin rate
-    spin = float(_require(row, 'release_spin_rate', 'spin rate'))
-
-    # Spin axis → clock_angle
-    statcast_axis = float(_require(row, 'spin_axis', 'spin axis'))
-    clock_angle = _clock_angle_from_statcast(statcast_axis, arm_slot_float, handedness_num)
-
-    # Statcast vx0/vy0/vz0 are in ft/s at the y=50ft tracking-start position (~3–5 ft
-    # closer to the plate than the release point). Configuration.velo_correction() will
-    # back-compute the true release velocity; statcast: true triggers that logic.
+    # Statcast vx0/vy0/vz0 are in ft/s at the y=50ft tracking-start position
     vx = float(_require(row, 'vx0', 'velocity x'))
     vy = float(_require(row, 'vy0', 'velocity y'))
     vz = float(_require(row, 'vz0', 'velocity z'))
+
+    spin_rate = float(_require(row, 'release_spin_rate', 'spin rate'))
+    spin_angle = float(_require(row, 'spin_axis', 'spin axis'))
 
     cfg = {
         'format': {'type': 'statcast'},
@@ -277,11 +254,8 @@ def pitch_to_config(row, height, arm_slot_override=None, include_training=False,
                 'release_pos': [f"{rx} ft", f"{ry} ft", f"{rz} ft"],
             },
             'speed': f"{speed} mph",
-            'spin': f"{spin} rpm",
-            # spin_axis is the pure-backspin reference in pitch frame.
-            # clock_angle rotates it to match the Statcast spin direction.
-            'spin_axis': [-1, 0, 0],
-            'clock_angle': f"{clock_angle:.4f} degree",
+            'spin_rate': f"{spin_rate} rpm",
+            'spin_angle': f"{spin_angle} degree",
             'velocity': {
                 'vector': [f"{vx} ft/s", f"{vy} ft/s", f"{vz} ft/s"],
             },
