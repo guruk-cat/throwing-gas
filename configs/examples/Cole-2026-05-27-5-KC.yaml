@@ -17,6 +17,7 @@ launch:
     - 2.358344441115718 ft/s
     - -119.8755949475307 ft/s
     - 2.3948490264279396 ft/s
+  active_spin: 84.0 percent
   scene:
     temperature: 28.5 degC
     pressure: 982.5 hPa

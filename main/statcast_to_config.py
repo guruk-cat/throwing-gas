@@ -4,6 +4,7 @@
 
 import datetime as dt
 import functools
+import io
 import math
 import re
 import sys
@@ -90,7 +91,44 @@ def _build_metadata(row):
 
 
 _STATS_API = "https://statsapi.mlb.com/api/v1"
-_ARCHIVE_API = "https://archive-api.open-meteo.com/v1/archive"
+_ARCHIVE_METEO_API = "https://archive-api.open-meteo.com/v1/archive"
+_ACTIVE_SPIN_API = "https://baseballsavant.mlb.com/leaderboard/active-spin"
+
+# Statcast pitch-type code -> active-spin leaderboard column suffix.
+# Codes absent here (or below the leaderboard threshold) have no active-spin value.
+_ACTIVE_SPIN_COL = { 
+    'FF': 'fourseam', 'SI': 'sinker', 'FC': 'cutter', 'CH': 'changeup', 
+    'FS': 'splitter', 'CU': 'curve', 'KC': 'curve', 'SL': 'slider', 
+    'ST': 'sweeper', 'SV': 'slurve' 
+}
+
+
+@functools.lru_cache(maxsize=None)
+def _fetch_active_spin_table(year):
+    # Seasonal active-spin leaderboard, indexed by pitcher MLBAM id (entity_id).
+    r = requests.get(_ACTIVE_SPIN_API, params={'year': year, 'csv': 'true'}, timeout=30)
+    r.raise_for_status()
+    return pd.read_csv(io.StringIO(r.text)).set_index('entity_id')
+
+
+def _active_spin_in(pitcher_id, col, year):
+    table = _fetch_active_spin_table(year)
+    if pitcher_id not in table.index:
+        return None
+    val = table.loc[pitcher_id, f'active_spin_{col}']
+    return None if pd.isna(val) else float(val)
+
+
+def _lookup_active_spin(pitcher_id, pitch_type, year):
+    # Active spin for a pitcher's pitch type in a season, or None on any miss.
+    # The current season may be only partly filled, so fall back to the prior year on a miss.
+    col = _ACTIVE_SPIN_COL.get(pitch_type)
+    if col is None:
+        return None
+    hit = _active_spin_in(pitcher_id, col, year)
+    if hit is None and int(year) == dt.date.today().year:
+        hit = _active_spin_in(pitcher_id, col, str(int(year) - 1))
+    return hit
 
 '''
 Statcast home_team abbreviation -> (latitude, longitude) of the home ballpark.
@@ -151,7 +189,7 @@ def _fetch_weather(lat, lon, dt_utc):
     # Units: temperature °C, surface_pressure hPa, relative_humidity %. 
     # The date is taken from the UTC timestamp (a night game is the next UTC day).
     date = dt_utc.strftime('%Y-%m-%d')
-    r = requests.get(_ARCHIVE_API, params={
+    r = requests.get(_ARCHIVE_METEO_API, params={
         'latitude': lat, 'longitude': lon,
         'start_date': date, 'end_date': date,
         'hourly': 'temperature_2m,surface_pressure,relative_humidity_2m',
@@ -244,6 +282,14 @@ def pitch_to_config(row, height, arm_slot_override=None, include_training=False,
     spin_rate = float(_require(row, 'release_spin_rate', 'spin rate'))
     spin_angle = float(_require(row, 'spin_axis', 'spin axis'))
 
+    # Active spin
+    pitch_type = str(row.get('pitch_type', ''))
+    year = str(_require(row, 'game_date', 'game date'))[:4]
+    active_spin = _lookup_active_spin(int(_require(row, 'pitcher', 'pitcher id')), pitch_type, year)
+    if active_spin is None:
+        print(f"Warning: no active-spin value for pitcher {row.get('player_name', '?')} "
+              f"pitch type {pitch_type!r}; simulation will assume 100%.")
+
     cfg = {
         'format': {'type': 'statcast'},
         'launch': {
@@ -261,6 +307,8 @@ def pitch_to_config(row, height, arm_slot_override=None, include_training=False,
             },
         }
     }
+    if active_spin is not None:
+        cfg['launch']['active_spin'] = f"{active_spin} percent"
     if include_scene:
         cfg['launch']['scene'] = _build_scene(row)
     if include_training:

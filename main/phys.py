@@ -7,7 +7,6 @@ from numpy.linalg import norm
 
 
 ureg = pint.UnitRegistry()
-ureg.define('percent = 0.01 rad')   # convenience unit for relative error tolerances
 Q_ = ureg.Quantity                  # type: ignore[misc]
 pint.set_application_registry(ureg)
 
@@ -339,6 +338,7 @@ class Configuration:
 
     # Spin
     self.spin_rate   = Q_(0, 'rad/s')
+    self.active_spin = Q_(100, 'percent')  # statcast: fraction of spin that is transverse
     self.spin_angle  = None                # statcast: world-frame axis tilt in the x-z plane
     self.spin_axis   = xhat.copy()         # manual: unit vector in pitch-frame coordinates
     self.clock_angle = Q_(0, 'degree')     # manual
@@ -413,9 +413,15 @@ class Configuration:
         raise ValueError("statcast format requires 'spin_angle'.")
       self.spin_angle = parse_quantity(config['spin_angle'])
       config_keys_used.append('spin_angle')
+
+      if 'active_spin' in config:
+        self.active_spin = parse_quantity(config['active_spin'])
+        config_keys_used.append('active_spin')
+
     else:
       if 'spin_axis' not in config or 'clock_angle' not in config:
         raise ValueError("manual format requires 'spin_axis' and 'clock_angle'.")
+      
       self.spin_axis = numpy.asarray(config['spin_axis'], dtype=float)
       self.spin_axis = self.spin_axis / norm(self.spin_axis)
       self.clock_angle = parse_quantity(config['clock_angle'])
@@ -578,6 +584,7 @@ class Configuration:
 
   def get_spin(self, unit=ureg.radian/ureg.second):
     magnitude = float(self.spin_rate.to(unit).magnitude)
+    magnitude *= self.active_spin.to_base_units().magnitude   # only transverse spin breaks
     if self.format_type == 'statcast':
       # spin_angle is a world-frame tilt in the x-z plane
       # counter-clockwise from +x (catcher's view)
