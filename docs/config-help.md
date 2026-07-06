@@ -78,6 +78,8 @@ The spin keys depend on `format.type`. `spin_rate` specifies the magnitude (e.g.
 
 `spin_angle` specifies the world-frame tilt of the spin axis in the x-z plane, measured counter-clockwise from `+x` (catcher's view). `0` is topspin, `180` is backspin. This follows the conventions for Statcast's `spin_axis` column.
 
+`active_spin` is the pitcher's average active spin for each pitch type. Fetched from Savant leaderboard. If not available, `phys` assumes 100%.
+
 #### `manual`
 
 | Key | Type | Description |
