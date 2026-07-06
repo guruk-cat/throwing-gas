@@ -295,6 +295,7 @@ class Simulation:
     return record
 
 
+
 class Configuration:
   def __init__(self):
     # Scene / environment parameters (used to compute air density)

@@ -52,18 +52,10 @@ In both cases, `arm_slot` is always required, as it determines `arm_dir`, which 
 
 ## Clock angle
 
-`spin_axis` in the config is specified in pitch-frame coordinates. Before being transformed to world coordinates, it can be rotated around `y_pitch` by `clock_angle`, which shifts the axis clockwise or counterclockwise as seen from the pitcher's perspective. The final world-frame spin direction is:
+Assuming that the config uses the `manaul` format (and not `statcast`), `spin_axis` in the config is specified in pitch-frame coordinates. Before being transformed to world coordinates, it can be rotated around `y_pitch` by `clock_angle`, which shifts the axis clockwise or counterclockwise as seen from the pitcher's perspective. The final world-frame spin direction is:
 
 ```
 spin_dir_world = M @ rot_y(clock_angle) @ spin_axis_pitch
 ```
 
 where `M` is the pitch-to-world rotation matrix.
-
-## What the pitch frame does not cover
-
-Velocity direction and speed are specified independently of the pitch frame:
-
-* `velocity.target` aims the ball at a world-frame point.
-* `velocity.vector` supplies the velocity directly.
-* `speed` always controls the magnitude; if `velocity.vector` is provided without `speed`, the magnitude is taken from the vector norm.

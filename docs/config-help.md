@@ -72,13 +72,20 @@ velocity:
 
 ### 2.4. Spin
 
-| Key | Type | Default | Description |
-|---|---|---|---|
-| `spin` | quantity (angular velocity) | `0 rpm` | Spin rate magnitude. |
-| `spin_axis` | list of 3 numbers | `[1, 0, 0]` | Unit vector in **pitch-frame** coordinates. See [pitch-frame.md](pitch-frame.md) for axis conventions. |
-| `clock_angle` | quantity (angle) | `0 degree` | Rotates `spin_axis` around `y_pitch` before transforming to world frame. Positive = clockwise from catcher's perspective (counter-clockwise from pitcher's perspective). |
+The spin keys depend on `format.type`. `spin_rate` specifies the magnitude (e.g., "2200 rpm") and is shared. The direction is given differently in each grammar.
 
-Common `spin_axis` values (pitch frame, righty pitcher):
+#### `statcast`
+
+`spin_angle` specifies the world-frame tilt of the spin axis in the x-z plane, measured counter-clockwise from `+x` (catcher's view). `0` is topspin, `180` is backspin. This follows the conventions for Statcast's `spin_axis` column.
+
+#### `manual`
+
+| Key | Type | Description |
+|---|---|---|
+| `spin_axis` | list of 3 numbers | Unit vector in **pitch-frame** coordinates. See [pitch-frame.md](pitch-frame.md) for axis conventions. |
+| `clock_angle` | quantity (angle) | Rotates `spin_axis` around `y_pitch` before transforming to world frame. Positive = clockwise from catcher's perspective (counter-clockwise from pitcher's perspective). |
+
+Both keys are required. Common `spin_axis` values (pitch frame, righty pitcher):
 
 | Value | Shape |
 |---|---|
@@ -154,36 +161,3 @@ Optional block written by `statcast_to_config.py` / `command.py` to identify whe
 | `pitcher` | string | Pitcher name, as `First Last`. |
 | `game_date` | string | Game date, `YYYY-MM-DD`. |
 | `pitch_count` | int | The pitch's position in the game for this pitcher (1-based, chronological). |
-
-## 6. Full example
-
-```yaml
-format:
-  type            : manual
-
-launch:
-  handedness      : right
-  arm_slot        : "52 degree"
-  arm_extension   : "6 in"
-
-  position:
-    height        : "6 ft 2 in"
-    rubber        : ["0 m", "18.44 m"]
-
-  speed           : "97 mph"
-  spin            : "2100 rpm"
-  spin_axis       : [0, 0, -1]
-  clock_angle:    : "0 degree"
-
-  velocity:
-    target        : ["0.3 m", "0 m", "1.7 m"]
-
-  scene:
-    temperature   : "24.9 degC"
-    pressure      : "1000.6 hPa"
-    humidity      : "65 percent"
-
-simulation:
-  time_step       : "0.5 ms"
-  error_tolerance : "0.5 percent"
-```
