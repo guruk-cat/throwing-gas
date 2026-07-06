@@ -550,7 +550,7 @@ class Configuration:
       if isinstance(self.velocity_vector, Q_):
         vv_ms = self.velocity_vector.to('m/s').magnitude 
       else:
-        numpy.asarray(self.velocity_vector, dtype=float)
+        vv_ms = numpy.asarray(self.velocity_vector, dtype=float)
       if self.velocity_is_statcast and not suppress_velo_correction:
         v_release_ms = self.velo_correction(vv_ms)
         direction    = v_release_ms / norm(v_release_ms)
