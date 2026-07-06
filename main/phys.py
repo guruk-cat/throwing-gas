@@ -25,7 +25,7 @@ _MOUND_HEIGHT_M = 0.254   # standard mound height above field level (10 in)
 DEFAULT_TIME_STEP = Q_(0.5, 'ms')
 DEFAULT_MAGNUS_COEFFICIENT = None
 DEFAULT_DRAG_COEFFICIENT = None
-DEFAULT_MAGNUS_MODEL = 'squared velocity'
+DEFAULT_MAGNUS_MODEL = 'linear velocity'
 
 # Air density
 _R_DRY   = 287.0500676   # specific gas constant of dry air      [J/(kg·K)]

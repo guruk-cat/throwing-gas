@@ -189,11 +189,8 @@ def check_goferr(cfgs, alpha, beta):
 
     return numpy.mean(numpy.array(errs)), full_list
 
-def run(cfgs, kind, complex, other=None):
-    if complex:
-        new_coefficient = None
-    else:
-        new_coefficient, err_rms = find_scalar(kind, cfgs, other)
+def run(cfgs, kind, other=None):
+    new_coefficient, err_rms = find_scalar(kind, cfgs, other)
     print(f"FINAL:")
     print(f"  K         = {new_coefficient.get_value():.8e} ({new_coefficient.unit})")
     print(f"  RMS       = {err_rms:.8e} ({new_coefficient.unit})")
@@ -203,7 +200,6 @@ def run(cfgs, kind, complex, other=None):
 def main():
     parse = argparse.ArgumentParser(description="Optimize coefficients via gradient descent.")
     parse.add_argument('-path', type=pathlib.Path, help="Path to directory holding config files")
-    parse.add_argument('--complex', action='store_true', help="Coefficient is a polynomial of velocity")
     parse.add_argument('--goferr', action='store_true', help="Check good ole-fashioned error after determining K")
     args = parse.parse_args()
     clear_cli()
@@ -211,11 +207,11 @@ def main():
     samples_dir = args.path.resolve()
     cfgs = load_dir(samples_dir, load_training=True)
     print("")
-    new_drag = Quant(run(cfgs, 'drag', args.complex).get_value(), const_units['alpha'])
+    new_drag = Quant(run(cfgs, 'drag').get_value(), const_units['alpha'])
     print("")
     other = Coefficient('drag', False)
     other.set_value(new_drag.magnitude)
-    new_magnus = Quant(run(cfgs, 'magnus', args.complex, other).get_value(), const_units['beta'])
+    new_magnus = Quant(run(cfgs, 'magnus', other).get_value(), const_units['beta'])
 
     if args.goferr:
         print("\nComputing displacement error...")
@@ -226,7 +222,6 @@ def main():
         names = ['FASTBALLS ', 'OFFSPEEDS ', 'CURVEBALLS', 'SLIDERS   ']
         pitches = [fastballs, offspeeds, curveballs, sliders]
 
-        # Deets: pitch_type, pitcher_name, pitch_count, game_date, err_kind, err
         for name, pitch_type in zip(names, pitches):
             filtered = [row for row in err_details if row[0] in pitch_type]
             filtered_errs = [row[-1] for row in filtered]
