@@ -22,7 +22,7 @@ _K_EXT          = 0.082   # arm extension (forward lean) as fraction of pitcher 
 _K_STRIDE       = 0.85    # shoulder stride toward plate as fraction of pitcher height (back-computed from Statcast avg ~5.75 ft extension)
 _MOUND_HEIGHT_M = 0.254   # standard mound height above field level (10 in)
 
-# Quick-acess defaults
+# Quick-acess defaults; only for convenience
 DEFAULT_TIME_STEP = Q_(0.5, 'ms')
 DEFAULT_MAGNUS_COEFFICIENT = Q_(1.37800775e-06, 'kg * s / m')
 DEFAULT_DRAG_COEFFICIENT = Q_(6.30816026e-04, 'kg/m')
@@ -69,9 +69,9 @@ def rot_axis(axis, theta):
                    [-k[1],  k[0],     0]])
   return numpy.cos(t)*numpy.eye(3) + numpy.sin(t)*K + (1 - numpy.cos(t))*numpy.outer(k, k)
 
-def si_mag(quant):
+def si_mag(q):
   # Strip pint quantity to its SI base-unit magnitude.
-  return quant.to_base_units().magnitude
+  return q.to_base_units().magnitude
 
 def parse_quantity(s):
   # Handle "X ft Y in" compound format not natively supported by pint.
@@ -84,10 +84,12 @@ def parse_quantity(s):
   return Q_(s)
 
 def parse_scene(scene):
-  # Parse a `scene` block into (temperature, pressure, humidity) quantities,
-  # defaulting any omitted key to its sea-level value. Values are split into
-  # magnitude + unit explicitly because the generic Q_(s) multiply path chokes
-  # on offset units like degC.
+  '''
+  Parse a `scene` block into (temperature, pressure, humidity) quantities,
+  defaulting any omitted key to its sea-level value. Values are split into
+  magnitude + unit explicitly because the generic Q_(s) multiply path chokes
+  on offset units like degC.
+  '''
   out = {'temperature': DEFAULT_TEMPERATURE,
          'pressure':    DEFAULT_PRESSURE,
          'humidity':    DEFAULT_HUMIDITY}
@@ -98,10 +100,12 @@ def parse_scene(scene):
   return out['temperature'], out['pressure'], out['humidity']
 
 def air_density(temperature, pressure, humidity):
-  # Humid-air density (Q_ in kg/m^3), treating the air as an ideal-gas mixture
-  # of dry air and water vapor:  rho = P_d / (R_d * T) + P_v / (R_v * T).
-  # Saturation vapor pressure uses the Tetens approximation (over water).
-  # See https://en.wikipedia.org/wiki/Density_of_air#Humid_air
+  '''
+  Humid-air density (Q_ in kg/m^3), treating the air as an ideal-gas mixture
+  of dry air and water vapor:  rho = P_d / (R_d * T) + P_v / (R_v * T).
+  Saturation vapor pressure uses the Tetens approximation (over water).
+  See https://en.wikipedia.org/wiki/Density_of_air#Humid_air
+  '''
   T_C = temperature.to('degC').magnitude
   T_K = temperature.to('kelvin').magnitude
   P   = pressure.to('Pa').magnitude
@@ -122,8 +126,8 @@ def arm_direction(arm_slot_rad, handedness, arm_extension_m=0.0, arm_length_m=1.
   # Unit vector from shoulder to hand at release, in world coordinates.
   # Righty arm is on world -x side (pitcher's right); lefty on +x.
   sign  = -1.0 if handedness.lower().startswith('r') else 1.0
-  e     = arm_extension_m / arm_length_m   # normalised forward lean ∈ [0, 1)
-  scale = numpy.sqrt(1.0 - e**2)          # lateral/vertical amplitude shrinks as arm leans forward
+  e     = arm_extension_m / arm_length_m    # normalised forward lean ∈ [0, 1)
+  scale = numpy.sqrt(1.0 - e**2)            # lateral/vertical amplitude shrinks as arm leans forward
   v = numpy.array([sign * numpy.cos(arm_slot_rad) * scale,
                    -e,
                    numpy.sin(arm_slot_rad) * scale])
@@ -146,73 +150,46 @@ def build_pitch_frame(release_world, arm_dir):
   return numpy.column_stack([x_pitch, y_pitch, z_pitch])
 
 
+'''
+Force terms
+
+* Each returns an acceleration contribution (m/s^2) given a state vector and a
+constants bundle `c`. 
+* Both Simulation.derivative() and Configuration.velo_correction() go through 
+acceleration(), and plotting derives the Magnus vector via magnus_acc().
+'''
+
+def gravity_acc(state, c):
+  return -c.g * zhat
+
+def drag_acc(state, c):
+  v = state[4:7]
+  return -(c.Cd * c.rho / c.m) * norm(v) * v
+
+def magnus_acc(state, c):
+  v = state[4:7]
+  cross = numpy.cross(state[7:10], v)
+  if c.magnus_model == 'squared velocity':
+    return (c.Cm * c.rho / c.m) * norm(v) * cross
+  elif c.magnus_model == 'linear velocity':
+    return (c.Cm * c.rho / c.m) * cross
+  raise Exception(f"Unrecognized magnus model '{c.magnus_model}'")
+
+ALL_TERMS = (gravity_acc, drag_acc, magnus_acc)
+
+def acceleration(state, c, terms=None):
+  # Sum the enabled force terms. Order matches the historical gravity, drag,
+  # magnus accumulation so results are bit-identical.
+  if terms is None:
+    terms = getattr(c, 'enabled_terms', None) or ALL_TERMS
+  total = numpy.zeros(3)
+  for term in terms:
+    total = total + term(state, c)
+  return total
+
+
 
 class Simulation:
-  def __init__(self):
-    self.config = types.SimpleNamespace()
-
-    self.config.wind_speed                  = Q_(0, 'mph')
-    self.config.wind_direction              = Q_(0, 'degree')
-    self.config.rho                         = air_density(DEFAULT_TEMPERATURE, DEFAULT_PRESSURE, DEFAULT_HUMIDITY)
-
-    self.config.drag_coefficient            = DEFAULT_DRAG_COEFFICIENT
-    self.config.magnus_coefficient          = DEFAULT_MAGNUS_COEFFICIENT
-    self.config.magnus_model                = DEFAULT_MAGNUS_MODEL
-    
-    self.config.ball_mass                   = Q_(145, 'g')
-    self.config.ball_diameter               = Q_(3, 'in')
-    self.config.gravitational_acceleration  = Q_(9.8, 'm/s**2')
-
-    self.config.time_step                   = DEFAULT_TIME_STEP
-    self.config.time_step_growth_rate       = Q_(1, '')
-    self.config.error_tolerance             = Q_(0.1, 'percent')
-    self.config.auto_converge_time_step     = True
-
-    self.extra = types.SimpleNamespace() 
-    self.extra.record         = None    # use this to record miscellaneous data during run()
-    self.extra.record_type    = None    # use def record_* functions to activate
-
-  def configure(self, config):
-    config_keys_used = []
-    for k in self.config.__dict__:
-      config_key = None
-      if k in config:
-        config_key = k
-      if k.replace("_", " ") in config:
-        config_key = k.replace("_", " ")
-
-      if config_key is not None:
-        config_keys_used.append(config_key)
-        new_val = Q_(config[config_key])
-        if new_val.dimensionality != self.config.__dict__[k].dimensionality:
-          raise Exception(f"Configuration parameter '{config_key}' has wrong dimensions. "
-                          f"Expected '{self.config.__dict__[k].dimensionality}' "
-                          f"but got '{new_val.dimensionality}'.")
-        self.config.__dict__[k] = new_val
-
-    if len(config_keys_used) != len(config.keys()):
-      print("Warning: there were unused keys when configuring Simulation:")
-      for k in list(set(config.keys()) - set(config_keys_used)):
-        print("  ", k)
-      print("Make sure you didn't mispell something.")
-
-
-
-  # Extra recording
-
-  def record_clean(self):
-    self.extra.record_type  = None
-    self.extra.record       = None
-
-  def record_magnus(self):
-    self.extra.record_type  = "magnus"
-    self.extra.record       = [numpy.zeros(3)]
-  
-  def record_compute_time(self):
-    self.extra.record_type  = "compute"
-    self.extra.record       = 0.0
-
-
 
   @property
   def state_size(self):
@@ -225,75 +202,47 @@ class Simulation:
     '''
     return 10
 
-  def derivative(self, state):
+  def derivative(self, state, c):
     dsdt = numpy.zeros(self.state_size)
-
-    dsdt[0]   = 1           # dt/dt = 1
-    dsdt[1:4] = state[4:7]  # dx/dt = v
+    dsdt[0]   = 1                        # dt/dt = 1
+    dsdt[1:4] = state[4:7]               # dx/dt = v
+    dsdt[4:7] = acceleration(state, c)   # dv/dt = (Fg + Fd + Fm) / m
     # dw/dt = 0 (spin treated as constant for now)
-
-    # dv/dt = (Fg + Fd + Fm) / m
-    dsdt[4:7] -= si_mag(self.config.gravitational_acceleration) * zhat  # gravity
-    
-    speed = norm(state[4:7])
-    drag = (-1) * si_mag(self.config.drag_coefficient) * si_mag(self.config.rho) * speed * state[4:7] / si_mag(self.config.ball_mass)
-    dsdt[4:7] += drag
-
-    magnus = None 
-    if self.config.magnus_model == 'squared velocity':
-      magnus = si_mag(self.config.magnus_coefficient) * si_mag(self.config.rho) * speed * numpy.cross(state[7:10], state[4:7]) / si_mag(self.config.ball_mass)
-      dsdt[4:7] += magnus
-    elif self.config.magnus_model == 'linear velocity':
-      magnus = si_mag(self.config.magnus_coefficient) * si_mag(self.config.rho) * numpy.cross(state[7:10], state[4:7]) / si_mag(self.config.ball_mass)
-      dsdt[4:7] += magnus
-    else:
-      raise Exception(f"Unrecognized magnus model '{self.config.magnus_model}'")
-    
-    if self.extra.record_type is None:
-      # not really necessary, but in place in case I add more stuff later
-      pass
-    elif self.extra.record_type == "magnus":
-      self.extra.record.append(magnus)
-
     return dsdt
 
-  def rk4(self, time_step, state):
-    k1 = time_step * self.derivative(state)
-    k2 = time_step * self.derivative(state + k1 / 2)
-    k3 = time_step * self.derivative(state + k2 / 2)
-    k4 = time_step * self.derivative(state + k3)
+  def rk4(self, time_step, state, c):
+    k1 = time_step * self.derivative(state, c)
+    k2 = time_step * self.derivative(state + k1 / 2, c)
+    k3 = time_step * self.derivative(state + k2 / 2, c)
+    k4 = time_step * self.derivative(state + k3, c)
     return state + (k1 + 2*k2 + 2*k3 + k4) / 6
-  
-  def modified_rk4(self, time_step, state):
-    d1 = self.derivative(state)
+
+  def modified_rk4(self, time_step, state, c):
+    # returns point acceleration
+    d1 = self.derivative(state, c)
     k1 = time_step * d1
-
-    d2 = self.derivative(state + k1 / 2)
+    d2 = self.derivative(state + k1 / 2, c)
     k2 = time_step * d2
-
-    d3 = self.derivative(state + k2/2)
+    d3 = self.derivative(state + k2/2, c)
     k3 = time_step * d3
-
-    d4 = self.derivative(state +k3)
-
+    d4 = self.derivative(state + k3, c)
     return (d1 + 2*d2 + 2*d3 + d4) / 6
 
   def _step_error(self, s0, s1, s2):
     # relative error: how much the double-half-step s2 differs from the full-step s1,
     # normalised by the total displacement from s0
     return norm(s2 - s1) / norm(s2 - s0)
-  
+
   def point_run(self, launch_config, print_debug=False):
-    # used for constant optimization
     # compute derivative of velo vector for one time step and return vector
-    self.config.rho = Q_(launch_config.get_air_density(), 'kg/m**3')
+    c = launch_config.constants()
     state = numpy.zeros(self.state_size)
     state[4:7]  = launch_config.get_velocity(suppress_velo_correction=True)
     state[7:10] = launch_config.get_spin()
 
-    dt = self.config.time_step.to('s').magnitude
-    s_half_step = self.rk4(dt/2, state)
-    ds_dt = self.modified_rk4(dt/2, s_half_step)
+    dt = c.dt
+    s_half_step = self.rk4(dt/2, state, c)  # for matching regular run() precision
+    ds_dt = self.modified_rk4(dt/2, s_half_step, c)
     dv_dt = ds_dt[4:7]
 
     if print_debug:
@@ -307,25 +256,25 @@ class Simulation:
     return dv_dt
 
   def run(self, launch_config, terminate_function=lambda record: len(record) > 1000, record_all=True, adaptive=True):
-    self.config.rho = Q_(launch_config.get_air_density(), 'kg/m**3')
+    c = launch_config.constants()
     state = numpy.zeros(self.state_size)
     state[1:4]  = launch_config.get_position()
     state[4:7]  = launch_config.get_velocity()
     state[7:10] = launch_config.get_spin()
 
     record = [state.copy()]
-    dt = self.config.time_step.to('s').magnitude
+    dt = c.dt
     if not adaptive:
       dt = dt/2   # exists to match the precision of adaptive stepping's dt/2
 
     while not terminate_function(record):
-      # adaptive step: compare one full step vs two half steps; 
+      # adaptive step: compare one full step vs two half steps;
       # halve dt if error too large
       while adaptive:
-        s1  = self.rk4(dt, state)
-        s2  = self.rk4(dt/2, self.rk4(dt/2, state))
+        s1  = self.rk4(dt, state, c)
+        s2  = self.rk4(dt/2, self.rk4(dt/2, state, c), c)
         err = self._step_error(state, s1, s2)
-        if self.config.auto_converge_time_step and err > self.config.error_tolerance.to('').magnitude:
+        if c.auto_converge and err > c.tol:
           print(f"Info: decreasing time step from {dt} to {dt/2}")
           dt /= 2
         else:
@@ -333,10 +282,10 @@ class Simulation:
           break
 
       if adaptive:
-        dt *= self.config.time_step_growth_rate.to('').magnitude
+        dt *= c.growth
 
       if not adaptive:
-        state = self.rk4(dt, state)
+        state = self.rk4(dt, state, c)
 
       if record_all:
         record.append(state.copy())
@@ -352,38 +301,61 @@ class Configuration:
     self.temperature = DEFAULT_TEMPERATURE   # Q_ temperature
     self.pressure    = DEFAULT_PRESSURE      # Q_ pressure
     self.humidity    = DEFAULT_HUMIDITY      # Q_ relative humidity (fraction of saturation)
-    self.rho         = None                  # Q_ air density; lazily filled by get_air_density()
 
-    # Arm geometry parameters
+    # Physics constants and integration knobs
+    # These feed both the forward sim and velo_correction.
+    self.drag_coefficient           = DEFAULT_DRAG_COEFFICIENT
+    self.magnus_coefficient         = DEFAULT_MAGNUS_COEFFICIENT
+    self.ball_mass                  = Q_(145, 'g')
+    self.ball_diameter              = Q_(3, 'in')
+    self.gravitational_acceleration = Q_(9.8, 'm/s**2')
+    self.time_step                  = DEFAULT_TIME_STEP
+    self.time_step_growth_rate      = Q_(1, '')
+    self.error_tolerance            = Q_(0.1, 'percent')
+    self.auto_converge_time_step    = True
+    self.wind_speed                 = Q_(0, 'mph')
+    self.wind_direction             = Q_(0, 'degree')
+    self.enabled_terms              = None   # None -> all force terms; set to a subset for physics testing
+
+    # Arm geometry
     self.handedness    = 'right'
     self.arm_slot      = Q_(45, 'degree')
     self.arm_extension = None              # Q_; if None, derived from height via _K_EXT
     self.arm_length    = None              # Q_; if None, derived from height via _K_ARM
 
-    # Position parameters — provide one of:
-    #   release_pos  : direct world-frame release point (e.g. from Statcast)
-    #   height       : pitcher height; shoulder estimated from rubber + _K_SH * height
+    # Position
     self.release_pos   = None              # Q_ vector or ndarray (metres)
     self.height        = None              # Q_
     self.rubber        = numpy.array([0.0, 18.44])  # [x_m, y_m]
 
-    # Velocity parameters
+    # Velocity
     self.speed                = None       # Q_ scalar; if None, derived from velocity_vector norm
     self.aim_target           = None       # ndarray (world metres); mutually exclusive with velocity_vector
     self.velocity_vector      = None       # Q_ vector; mutually exclusive with aim_target
     self.velocity_is_statcast = False      # if True, velocity_vector is at y=50ft and needs back-computation
 
-    # Spin parameters
+    # Spin
     self.spin        = Q_(0, 'rad/s')
     self.spin_axis   = xhat.copy()         # unit vector in pitch-frame coordinates
     self.clock_angle = Q_(0, 'degree')
 
-    # Magnus model (must match Simulation.config.magnus_model for velo_correction)
+    # Magnus model (used by the force law and velo_correction)
     self.magnus_model = DEFAULT_MAGNUS_MODEL
 
-  def configure(self, config):
+  def configure(self, cfg):
+    # Accepts the full config dict (with a 'launch' block and optional
+    # 'simulation' block). For backward compatibility it also accepts a bare
+    # launch block.
+    if isinstance(cfg, dict) and 'launch' in cfg:
+      config = cfg['launch']
+      sim_block = cfg.get('simulation')
+    else:
+      config = cfg
+      sim_block = None
+
     config_keys_used = []
 
+    # keys that don't need special treatment
     for key, attr, parser in [
       ('handedness',    'handedness',    lambda v: v),
       ('magnus_model',  'magnus_model',  lambda v: v),
@@ -398,35 +370,39 @@ class Configuration:
         setattr(self, attr, parser(config[key]))
         config_keys_used.append(key)
 
+    # keys that need special treatment
+
     if 'position' in config:
       pos = config['position']
       config_keys_used.append('position')
+
       if 'height' not in pos:
         raise ValueError("'position.height' is required.")
       self.height = parse_quantity(pos['height'])
+
       if 'release_pos' in pos:
         rp = pos['release_pos']
-        units = Q_(rp[0]).units
-        self.release_pos = units * numpy.array([Q_(v).to(units).magnitude for v in rp])
+        self.release_pos =  numpy.array([parse_quantity(v).to('m').magnitude for v in rp])
+      
       if 'rubber' in pos:
         r = pos['rubber']
-        self.rubber = numpy.array([parse_quantity(r[0]).to('m').magnitude,
-                                   parse_quantity(r[1]).to('m').magnitude])
+        self.rubber = numpy.array([parse_quantity(r[0]).to('m').magnitude, parse_quantity(r[1]).to('m').magnitude])
 
     if 'velocity' in config:
       vel = config['velocity']
       config_keys_used.append('velocity')
       if 'statcast' in vel:
         self.velocity_is_statcast = bool(vel['statcast'])
+
       if 'target' in vel:
         t = vel['target']
-        self.aim_target      = numpy.array([parse_quantity(v).to('m').magnitude for v in t])
+        self.aim_target = numpy.array([parse_quantity(v).to('m').magnitude for v in t])
         self.velocity_vector = None
       elif 'vector' in vel:
         v = vel['vector']
-        units = Q_(v[0]).units
-        self.velocity_vector = units * numpy.array([Q_(x).to(units).magnitude for x in v])
-        self.aim_target      = None
+        units = 'meter per second'
+        self.velocity_vector = numpy.array([Q_(x).to(units).magnitude for x in v])
+        self.aim_target = None
       else:
         raise ValueError("'velocity' must contain 'target' or 'vector'.")
 
@@ -445,16 +421,55 @@ class Configuration:
         print("  ", k)
       print("Make sure you didn't mispell something.")
 
+    if sim_block:
+      self.configure_simulation(sim_block)
+
+  def configure_simulation(self, block):
+    # Parse the `simulation` block (physics constants and integration knobs)
+    # onto this Configuration. Omitted keys keep their defaults.
+    quantity_attrs = [
+      'drag_coefficient', 'magnus_coefficient', 'ball_mass', 'ball_diameter',
+      'gravitational_acceleration', 'time_step', 'time_step_growth_rate',
+      'error_tolerance', 'wind_speed', 'wind_direction',
+    ]
+    for attr in quantity_attrs:
+      if attr in block:
+        new_val = Q_(block[attr])
+        current = getattr(self, attr)
+        if new_val.dimensionality != current.dimensionality:
+          raise Exception(f"Configuration parameter '{attr}' has wrong dimensions. "
+                          f"Expected '{current.dimensionality}' but got '{new_val.dimensionality}'.")
+        setattr(self, attr, new_val)
+    if 'magnus_model' in block:
+      self.magnus_model = block['magnus_model']
+    if 'auto_converge_time_step' in block:
+      self.auto_converge_time_step = bool(block['auto_converge_time_step'])
+
   def configure_scene(self, scene):
     # Parse a `scene` block (temperature, pressure, humidity).
-    # Any omitted key keeps its sea-level default. Invalidates the cached density.
+    # Any omitted key keeps its sea-level default.
     self.temperature, self.pressure, self.humidity = parse_scene(scene)
-    self.rho = None
 
   def get_air_density(self, unit=ureg.kg/ureg.meter**3):
-    if self.rho is None:
-      self.rho = air_density(self.temperature, self.pressure, self.humidity)
-    return float(self.rho.to(unit).magnitude)
+    rho = air_density(self.temperature, self.pressure, self.humidity)
+    return float(rho.to(unit).magnitude)
+
+  def constants(self):
+    # Resolve every run parameter to SI floats once.
+    # Constants are refreshed on every Sim run and point_run
+    return types.SimpleNamespace(
+      g             = si_mag(self.gravitational_acceleration),
+      m             = si_mag(self.ball_mass),
+      Cd            = si_mag(self.drag_coefficient),
+      Cm            = si_mag(self.magnus_coefficient),
+      rho           = self.get_air_density(),
+      magnus_model  = self.magnus_model,
+      enabled_terms = tuple(self.enabled_terms) if self.enabled_terms else ALL_TERMS,
+      dt            = self.time_step.to('s').magnitude,
+      tol           = self.error_tolerance.to('').magnitude,
+      growth        = self.time_step_growth_rate.to('').magnitude,
+      auto_converge = self.auto_converge_time_step,
+    )
 
   def _resolve_geometry(self):
     # Returns (release_world_m, arm_dir, M) — all quantities in SI base units.
@@ -467,8 +482,10 @@ class Configuration:
     else:
       raise ValueError("Cannot resolve arm length: 'position.height' is required.")
 
-    arm_ext_m = self.arm_extension.to('m').magnitude if self.arm_extension is not None \
-                else _K_EXT * self.height.to('m').magnitude
+    if self.arm_extension is not None:
+      arm_ext_m = self.arm_extension.to('m').magnitude 
+    else:
+      arm_ext_m = _K_EXT * self.height.to('m').magnitude
 
     arm_dir = arm_direction(arm_slot_rad, self.handedness, arm_ext_m, arm_len_m)
 
@@ -502,23 +519,11 @@ class Configuration:
     Returns:
       v_release: velocity vector at the release point, in m/s (numpy array, world frame).
     '''
-    w     = self.get_spin()
-    speed = norm(v50_ms)
-
-    Cd  = si_mag(DEFAULT_DRAG_COEFFICIENT)
-    Cm  = si_mag(DEFAULT_MAGNUS_COEFFICIENT)
-    m   = si_mag(Q_(145, 'g'))
-    rho = self.get_air_density()
-
-    a = numpy.zeros(3)
-    a -= 9.8 * zhat
-    a -= (Cd * rho / m) * speed * v50_ms
-    if self.magnus_model == 'squared velocity':
-      a += (Cm * rho / m) * speed * numpy.cross(w, v50_ms)
-    elif self.magnus_model == 'linear velocity':
-      a += (Cm * rho / m) * numpy.cross(w, v50_ms)
-    else:
-      raise ValueError(f"Unrecognized magnus model '{self.magnus_model}'")
+    c = self.constants()
+    state = numpy.zeros(10)
+    state[4:7]  = v50_ms
+    state[7:10] = self.get_spin()
+    a = acceleration(state, c)   # all terms, using this config's own constants
 
     release_world, _, _ = self._resolve_geometry()
     s_y = Q_(50, 'ft').to('m').magnitude - release_world[1]
@@ -529,7 +534,7 @@ class Configuration:
     C   = s_y
     disc = B**2 - 4*A*C
     if disc < 0:
-      raise ValueError("velo_correction: no real solution — check release point and velocity vector.")
+      raise ValueError("velo_correction: no real solution, check release point and velocity vector.")
     t = (-B + numpy.sqrt(disc)) / (2 * A)
 
     return v50_ms - a * t

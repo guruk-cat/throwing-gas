@@ -7,7 +7,7 @@ import yaml
 import pint
 
 sys.path.insert(0, str(pathlib.Path(__file__).parent))
-from phys import Simulation, Configuration
+from phys import Simulation, Configuration, magnus_acc
 from plotting import Trajectory3DPlot
 
 ureg = pint.UnitRegistry()
@@ -53,15 +53,14 @@ def main():
             cfg = yaml.safe_load(f)
 
         sim = Simulation()
-        if 'simulation' in cfg:
-            sim.configure(cfg['simulation'])
-        sim.record_magnus()     # record acceleration from magnus force at every time step
 
         launch = Configuration()
-        launch.configure(cfg['launch'])
+        launch.configure(cfg)
 
         trajectory = sim.run(launch, terminate)
-        trajectory = [numpy.append(state, sim.extra.record[i]) for i, state in enumerate(trajectory)]
+        # Annotate each point with its Magnus acceleration (derived, not recorded).
+        c = launch.constants()
+        trajectory = [numpy.append(state, magnus_acc(state, c)) for state in trajectory]
         trajectories.append(trajectory)
 
         name = pathlib.Path(config_path).name

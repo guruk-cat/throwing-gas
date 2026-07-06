@@ -31,7 +31,7 @@ All four keys feed into `arm_dir`, which is used everywhere: back-computing shou
 position:
   height: "6 ft 2 in"                          # required
   release_pos: ["1.5 ft", "55 ft", "6.2 ft"]   # optional; world-frame [x, y, z]
-  rubber: ["0 m", "18.44 m"]                    # optional; [x, y]; only used when release_pos is absent
+  rubber: ["0 m", "18.44 m"]                   # optional; [x, y]; only used when release_pos is absent
 ```
 
 `rubber` defaults to `[0 m, 18.44 m]` if omitted.
