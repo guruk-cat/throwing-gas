@@ -10,17 +10,14 @@ launch:
     - 53.46 ft
     - 6.22 ft
   speed: 95.3 mph
-  spin: 2446.0 rpm
-  spin_axis:
-  - -1
-  - 0
-  - 0
-  clock_angle: -26.5000 degree
+  spin_rate: 2446.0 rpm
+  spin_angle: 172.0 degree
   velocity:
     vector:
     - -2.8826845045063685 ft/s
     - -138.67492678278032 ft/s
     - -9.581343395360433 ft/s
+  active_spin: 88.0 percent
   scene:
     temperature: 24.9 degC
     pressure: 1000.6 hPa
