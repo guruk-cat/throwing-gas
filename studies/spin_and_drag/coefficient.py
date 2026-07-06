@@ -35,10 +35,8 @@ err_kind_str = {
     0   : 'near-orthogonal'
 }
 
-# shared sim instance
+# shared across runs
 sim = Simulation()
-sim.config.magnus_coefficient = Quant(1.0e-05, const_units['beta'])
-sim.config.drag_coefficient   = Quant(1.0e-05, const_units['alpha']) 
 
 
 # MATH HELPERS
@@ -107,26 +105,33 @@ class Coefficient():
             sum += term_coeff * (v ** i)
         return sum
 
-def find_scalar(kind, cfgs):
+def find_scalar(kind, cfgs, other=None):
     delta = 1.0e-4
-
     k_0 = Coefficient(kind, False)
     k_delta = Coefficient(kind, False)
     k_0.set_value(0)
     k_delta.set_value(delta)
+
+    if other is None:
+        if kind == 'magnus':
+            other = Coefficient('drag', False)
+        else:
+            other = Coefficient('magnus', False)
+
     refs = extract_true_acc(cfgs)
     A, B = [], []
 
     print(f"computing k for {kind}...")
     for config, ref in zip(cfgs, refs):
         launch = Configuration()
-        launch.configure(config['launch'])
+        launch.configure(config)
 
-        setattr(sim.config, k_0.attr, Quant(k_0.get_value(), k_0.unit))
+        setattr(launch, k_0.attr, Quant(k_0.get_value(), k_0.unit))
+        setattr(launch, other.attr, Quant(other.get_value(), other.unit))
         pred_0 = sim.point_run(launch)
         err_0 = pred_0 - ref
 
-        setattr(sim.config, k_delta.attr, Quant(k_delta.get_value(), k_delta.unit))
+        setattr(launch, k_delta.attr, Quant(k_delta.get_value(), k_delta.unit))
         pred_1 = sim.point_run(launch)
         err_1 = pred_1 - ref
 
@@ -142,77 +147,53 @@ def find_scalar(kind, cfgs):
     print(f"computing RMS error...")
     for config, ref in zip(cfgs, refs):
         launch = Configuration()
-        launch.configure(config['launch'])
+        launch.configure(config)
+        setattr(launch, k.attr, Quant(k.get_value(), k.unit))
+        setattr(launch, other.attr, Quant(other.get_value(), other.unit))
 
-        # The shared sim's coefficient is reset here
-        setattr(sim.config, k.attr, Quant(k.get_value(), k.unit))
         pred = sim.point_run(launch)
         rms_errs.append(numpy.sqrt(squared_err(pred, ref)))
 
     return k, numpy.mean(numpy.array(rms_errs))
 
-def check_goferr(cfgs, detailed=False):
-
+def check_goferr(cfgs, alpha, beta):
     i = 1
     total = len(cfgs)
     errs = []
     full_list = []
     plates = extract_plate(cfgs)
     for config, plate in zip(cfgs, plates):
-        if detailed:
-            print(f"\n{i}/{total}")
-        else:
-            print(f"  {i}/{total}")
+        print(f"  {i}/{total}")
         launch = Configuration()
-        launch.configure(config['launch'])
-        sim.record_clean()  # must be cleaned since same instance is reused
-        sim.record_magnus()
+        launch.configure(config)
+        launch.drag_coefficient = alpha
+        launch.magnus_coefficient = beta
+
         trajectory = sim.run(launch)
         plate_i = crossing_point(numpy.array(trajectory))
         plate_pred = numpy.array([trajectory[plate_i][1], trajectory[plate_i][3]])
 
-        err         = plate_pred - plate
-        magnus_xz   = numpy.array([sim.extra.record[plate_i][0], sim.extra.record[plate_i][2]])
-        cos_xz      = numpy.dot(err, magnus_xz) / (numpy.linalg.norm(err) * numpy.linalg.norm(magnus_xz))
-        if cos_xz > 0.1:
-            err_kind = 1    # overbreak
-        elif cos_xz < -0.1:
-            err_kind = -1   # underbreak
-        else:
-            err_kind = 0    # near-orthogonal
-
-        clock_angle_err = clock_angle(err[0], err[1])
-        clock_angle_magnus = clock_angle(magnus_xz[0], magnus_xz[1])
-
+        err = plate_pred - plate
         err = numpy.linalg.norm(err)    # magnitude for general report
-        errs.append(err) 
+        errs.append(err)
 
         md = config['metadata']
         pitch_type      = md['pitch_type']
         pitcher_name    = md['pitcher']
         pitch_count     = md['pitch_count']
         game_date       = md['game_date']
-        full_list.append([pitch_type, pitcher_name, pitch_count, game_date, err_kind, err])
-        
-        if detailed:
-            print(f"  Pitch type    : {pitch_type}")
-            print(f"  Identifier    : {pitcher_name}, #{pitch_count}, on {game_date}\n")
-            print(f"  Offshot       : {Quant(err, 'meter').to('inch').magnitude:.4e} inches")
-            print(f"    kind        : {err_kind_str[err_kind]}")
-            print(f"    disp. angle : {clock_angle_err} o'clock")
-            print(f"    magn. angle : {clock_angle_magnus} o'clock")
-        else:
-            delete_lines(1)
-        
+        full_list.append([pitch_type, pitcher_name, pitch_count, game_date, err])
+
+        delete_lines(1)
         i += 1
 
     return numpy.mean(numpy.array(errs)), full_list
 
-def run(cfgs, kind, complex):
+def run(cfgs, kind, complex, other=None):
     if complex:
         new_coefficient = None
     else:
-        new_coefficient, err_rms = find_scalar(kind, cfgs)
+        new_coefficient, err_rms = find_scalar(kind, cfgs, other)
     print(f"FINAL:")
     print(f"  K         = {new_coefficient.get_value():.8e} ({new_coefficient.unit})")
     print(f"  RMS       = {err_rms:.8e} ({new_coefficient.unit})")
@@ -221,29 +202,26 @@ def run(cfgs, kind, complex):
 
 def main():
     parse = argparse.ArgumentParser(description="Optimize coefficients via gradient descent.")
-    parse.add_argument('-type', choices=['magnus', 'drag', 'alternate'], default='alternate', help="Which coefficient to optimize")
     parse.add_argument('-path', type=pathlib.Path, help="Path to directory holding config files")
     parse.add_argument('--complex', action='store_true', help="Coefficient is a polynomial of velocity")
     parse.add_argument('--goferr', action='store_true', help="Check good ole-fashioned error after determining K")
-    parse.add_argument('--detailed', action='store_true', help="Print details for GOFErr")
     args = parse.parse_args()
     clear_cli()
 
     samples_dir = args.path.resolve()
     cfgs = load_dir(samples_dir, load_training=True)
-    if args.type == 'alternate':
-        print("")
-        run(cfgs, 'drag', args.complex)
-        print("")
-        run(cfgs, 'magnus', args.complex)
-    else:
-        run(cfgs, args.type, args.complex)
+    print("")
+    new_drag = Quant(run(cfgs, 'drag', args.complex).get_value(), const_units['alpha'])
+    print("")
+    other = Coefficient('drag', False)
+    other.set_value(new_drag.magnitude)
+    new_magnus = Quant(run(cfgs, 'magnus', args.complex, other).get_value(), const_units['beta'])
 
     if args.goferr:
         print("\nComputing displacement error...")
-        error, err_details = check_goferr(cfgs, args.detailed)
+        error, err_details = check_goferr(cfgs, new_drag, new_magnus)
         error = Quant(error, 'meter').to(const_units['displacement err']).magnitude
-        print(f"\nΔx avg. (all samples)    : {error:.4e} ({const_units['displacement err']})")
+        print(f"\nΔx avg. (all samples)      : {error:.4e} ({const_units['displacement err']})")
 
         names = ['FASTBALLS ', 'OFFSPEEDS ', 'CURVEBALLS', 'SLIDERS   ']
         pitches = [fastballs, offspeeds, curveballs, sliders]
@@ -253,15 +231,7 @@ def main():
             filtered = [row for row in err_details if row[0] in pitch_type]
             filtered_errs = [row[-1] for row in filtered]
             filtered_err_mean = Quant(numpy.mean(filtered_errs), 'meter').to(const_units['displacement err']).magnitude if filtered_errs else float('nan')
-            print(f"  \nΔx avg. for {name}   : {filtered_err_mean:.4e} ({const_units['displacement err']})")
+            print(f"  Δx avg. for {name}   : {filtered_err_mean:.4e} ({const_units['displacement err']})")
             
-            break_type_filtered = [row[-2] for row in filtered]
-            break_type_agg = numpy.sum(numpy.array(break_type_filtered))
-            if break_type_agg != 0:
-                break_type_id = math.copysign(1, break_type_agg)
-            else:
-                break_type_id = 0
-            print(f"  Dominant break side    : {err_kind_str[break_type_id]} ({break_type_agg})")
-
 if __name__ == '__main__':
     main()
