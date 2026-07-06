@@ -1,4 +1,3 @@
-# Gerrit Cole, 2026-05-27, pitch #5
 format:
   type: statcast
 launch:
@@ -21,10 +20,19 @@ launch:
     vector:
     - 2.358344441115718 ft/s
     - -119.8755949475307 ft/s
-    - 2.39484902642794 ft/s
+    - 2.3948490264279396 ft/s
+  scene:
+    temperature: 28.5 degC
+    pressure: 982.5 hPa
+    humidity: 42 percent
 training:
   ax: 8.933589 ft/s**2
   ay: 23.132932 ft/s**2
   az: -43.618882 ft/s**2
   plate_x: -0.510687 ft
   plate_z: 3.110569 ft
+metadata:
+  pitch_type: KC
+  pitcher: Gerrit Cole
+  game_date: '2026-05-27'
+  pitch_count: 5
