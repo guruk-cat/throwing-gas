@@ -1,14 +1,26 @@
 # Configuration Reference
 
-A pitch config file is a YAML document that configures a single pitch. It has up to four top-level blocks: `launch` (required), `simulation` (optional), `training` (optional), and `metadata` (optional). All physical quantities are strings parsed by `pint`, and units can be in any compatible form (e.g. `"97 mph"`, `"43.3 m/s"`).
+A pitch config file is a YAML document that configures a single pitch. It has up to five top-level blocks: `format` (optional), `launch` (required), `simulation` (optional), `training` (optional), and `metadata` (optional). All physical quantities are strings parsed by `pint`, and units can be in any compatible form (e.g. `"97 mph"`, `"43.3 m/s"`).
 
 A "pitch config" file is different from a "list config" file, which is used for producing batches of multiple pitch configs. See [CLI help](./cli-help.md) for details on the latter.
 
-## 1. `launch`
+## 1. `format`
+
+Selects which input grammar the rest of the file uses. 
+
+| Key | Type | Default | Description |
+|---|---|---|---|
+| `type` | string | `manual` | `statcast` or `manual`. |
+
+`statcast` marks a config generated from Statcast tracking. `velocity.vector` is the y=50 ft tracking velocity, and `Configuration.velo_correction()` back-computes the release velocity over the untracked gap before use. Written automatically by Statcast-related scripts.
+
+`manual` marks a hand-made config. `velocity.vector` or `velocity.target` is taken as-is at the release point, with no correction.
+
+## 2. `launch`
 
 Configures the initial state of the ball.
 
-### 1.1. Arm geometry
+### 2.1. Arm geometry
 
 `handedness` and `arm_slot` are required. `arm_extension` and `arm_length` are optional with sensible defaults.
 
@@ -21,7 +33,7 @@ All four keys feed into `arm_dir`, which is used everywhere: back-computing shou
 | `arm_extension` | quantity (length) | derived | Forward lean of the arm from shoulder toward the plate at release. If omitted, estimated as `0.082 * height` (~15 cm for a 182 cm pitcher). |
 | `arm_length` | quantity (length) | derived | Explicit arm length. If omitted, estimated as `0.37 * height`. |
 
-### 1.2. Position
+### 2.2. Position
 
 `position.height` is the pitcher's height, and is always required — it is used to derive `arm_length` (unless overridden explicitly), which is needed to back-compute the shoulder position regardless of how the release point is provided.
 
@@ -36,13 +48,9 @@ position:
 
 `rubber` defaults to `[0 m, 18.44 m]` if omitted.
 
-### 1.3. Velocity
+### 2.3. Velocity
 
-`speed` controls the magnitude. `velocity` controls the direction. Both are required unless `velocity.vector` is provided without `speed`, in which case the magnitude is taken from the vector norm.
-
-| Key | Type | Description |
-|---|---|---|
-| `speed` | quantity (speed) | Ball speed at release. Overrides the magnitude of `velocity.vector` if both are present. |
+`speed` sets the magnitude and is always required. `velocity` sets the direction only.
 
 Provide exactly one of these two options under `velocity`:
 
@@ -53,24 +61,16 @@ velocity:
   vector: ["-1 m/s", "-43 m/s", "1.5 m/s"]   # world-frame [vx, vy, vz]
 ```
 
-Add `statcast: true` when the vector comes from Statcast `vx0/vy0/vz0` (recorded at y=50 ft, not at the release point). `Configuration.velo_correction()` will back-compute the true release velocity over the untracked gap before applying it.
-
-```yaml
-velocity:
-  vector: ["-3.45 ft/s", "-141.2 ft/s", "-2.1 ft/s"]
-  statcast: true
-```
-
-`statcast_to_config.py` sets this flag automatically. Manual configs that use a directly-measured release velocity should leave it out (or set it to `false`).
-
 #### Option B (aim initial velo at a world-frame point)
+
+Manual only.
 
 ```yaml
 velocity:
   target: ["0.3 m", "0 m", "1.7 m"]   # world-frame [x, y, z]
 ```
 
-### 1.4. Spin
+### 2.4. Spin
 
 | Key | Type | Default | Description |
 |---|---|---|---|
@@ -87,7 +87,7 @@ Common `spin_axis` values (pitch frame, righty pitcher):
 | `[0, 0, -1]` | Arm-side sidespin (sinker/two-seam) |
 | `[0, 0, 1]` | Glove-side sidespin (cut fastball) |
 
-### 1.5. Scene
+### 2.5. Scene
 
 Optional `scene` sub-block describing the environmental conditions at the ballpark, used to compute air density. Written by `statcast_to_config.py` / `command.py` when weather lookup is enabled; inferred from the home team (ballpark coordinates) and first-pitch time, with conditions fetched from the [Open-Meteo](https://open-meteo.com/) historical archive. If omitted, ISA sea-level conditions (15 °C, 1013.25 hPa, dry) are assumed.
 
@@ -104,26 +104,26 @@ scene:
   humidity: "65 percent"
 ```
 
-## 2. `simulation`
+## 3. `simulation`
 
-All keys are optional. Omitted keys keep their defaults.
+All keys are optional. Omitted keys keep their defaults. 
 
 | Key | Default | Description |
 |---|---|---|
-| `drag_coefficient` | `0.000788 kg/m` | Coefficient in the drag force term `F_d = -C_d * speed * v`. |
-| `magnus_coefficient` | `2.2075e-06 kg·s/m` | Coefficient in the Magnus force term. |
+| `drag_coefficient` | See code | Coefficient in the drag force term `F_d = -C_d * speed * v`. |
+| `magnus_coefficient` | See code | Coefficient in the Magnus force term. |
 | `magnus_model` | `squared velocity` | Force model. `squared velocity`: Magnus force scales with `speed * (ω × v)`. `linear velocity`: scales with `(ω × v)` only. |
 | `ball_mass` | `145 g` | |
 | `ball_diameter` | `3 in` | Not currently used in force calculations; reserved. |
 | `gravitational_acceleration` | `9.8 m/s²` | |
 | `time_step` | `0.5 ms` | Initial RK4 integration step size. The simulation actually uses `time_step / 2` and completes two iterations of compute per time step, due to adaptive stepping. |
 | `time_step_growth_rate` | `1` (dimensionless) | Multiplicative factor applied to `time_step` after each step. Values > 1 coarsen the step over time. |
-| `error_tolerance` | `1 percent` | Relative error threshold for adaptive step size. If the error between a full step and two half-steps exceeds this, the step is halved. |
+| `error_tolerance` | See code | Relative error threshold for adaptive step size. If the error between a full step and two half-steps exceeds this, the step is halved. |
 | `auto_converge_time_step` | `true` | Whether to apply adaptive step-size halving at all. |
 | `wind_speed` | `0 mph` | Not yet implemented in force calculations; reserved. |
 | `wind_direction` | `0 degree` | Not yet implemented; reserved. |
 
-## 3. `training`
+## 4. `training`
 
 Optional block written by `statcast_to_config.py --training` or the `command.py` CLI tool when selecting the appropriate option. Stores the ground-truth plate crossing position from Statcast, used by the optimizer as the target output (s₂) for a pitch.
 
@@ -144,7 +144,7 @@ This block can also contain `plate_x` and `plate_z` from Statcast data. These ar
 
 The block is not read by `launch.py` or `Simulation` — ignored outside the optimizer.
 
-## 4. `metadata`
+## 5. `metadata`
 
 Optional block written by `statcast_to_config.py` / `command.py` to identify where a config came from. 
 
@@ -155,32 +155,35 @@ Optional block written by `statcast_to_config.py` / `command.py` to identify whe
 | `game_date` | string | Game date, `YYYY-MM-DD`. |
 | `pitch_count` | int | The pitch's position in the game for this pitcher (1-based, chronological). |
 
-## 5. Full example
+## 6. Full example
 
 ```yaml
+format:
+  type            : manual
+
 launch:
-  handedness:    right
-  arm_slot:      "52 degree"
-  arm_extension: "6 in"
+  handedness      : right
+  arm_slot        : "52 degree"
+  arm_extension   : "6 in"
 
   position:
-    height: "6 ft 2 in"
-    rubber: ["0 m", "18.44 m"]
+    height        : "6 ft 2 in"
+    rubber        : ["0 m", "18.44 m"]
 
-  speed:       "97 mph"
-  spin:        "2100 rpm"
-  spin_axis:   [0, 0, -1]
-  clock_angle: "0 degree"
+  speed           : "97 mph"
+  spin            : "2100 rpm"
+  spin_axis       : [0, 0, -1]
+  clock_angle:    : "0 degree"
 
   velocity:
-    target: ["0.3 m", "0 m", "1.7 m"]
+    target        : ["0.3 m", "0 m", "1.7 m"]
 
   scene:
-    temperature: "24.9 degC"
-    pressure:    "1000.6 hPa"
-    humidity:    "65 percent"
+    temperature   : "24.9 degC"
+    pressure      : "1000.6 hPa"
+    humidity      : "65 percent"
 
 simulation:
-  time_step:       "0.5 ms"
-  error_tolerance: "0.5 percent"
+  time_step       : "0.5 ms"
+  error_tolerance : "0.5 percent"
 ```
