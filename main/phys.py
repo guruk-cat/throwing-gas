@@ -542,14 +542,15 @@ class Configuration:
   def get_velocity(self, unit=(ureg.meter/ureg.second), suppress_velo_correction=False):
     release_world, _, _ = self._resolve_geometry()
 
-    v_release_ms = None  # set when velo_correction is applied
-
+    # direction
     if self.aim_target is not None:
       dr        = self.aim_target - release_world
       direction = dr / norm(dr)
     elif self.velocity_vector is not None:
-      vv_ms = self.velocity_vector.to('m/s').magnitude if isinstance(self.velocity_vector, Q_) \
-              else numpy.asarray(self.velocity_vector, dtype=float)
+      if isinstance(self.velocity_vector, Q_):
+        vv_ms = self.velocity_vector.to('m/s').magnitude 
+      else:
+        numpy.asarray(self.velocity_vector, dtype=float)
       if self.velocity_is_statcast and not suppress_velo_correction:
         v_release_ms = self.velo_correction(vv_ms)
         direction    = v_release_ms / norm(v_release_ms)
@@ -558,17 +559,11 @@ class Configuration:
     else:
       raise ValueError("Cannot resolve velocity direction: provide 'velocity.target' or 'velocity.vector'.")
 
+    # magnitude
     if self.speed is not None:
       magnitude = float(self.speed.to(unit).magnitude)
-    elif v_release_ms is not None:
-      magnitude = float(Q_(norm(v_release_ms), 'm/s').to(unit).magnitude)
-    elif self.velocity_vector is not None:
-      vv        = self.velocity_vector
-      vv_u      = vv.to(unit).magnitude if isinstance(vv, Q_) else numpy.asarray(vv, dtype=float)
-      magnitude = float(norm(vv_u))
     else:
-      raise ValueError("Cannot resolve speed: provide 'speed' or 'velocity.vector'.")
-
+      raise ValueError("Cannot resolve speed: provide 'speed.'")
     return magnitude * direction
 
   def get_spin(self, unit=ureg.radian/ureg.second):
