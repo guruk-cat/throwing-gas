@@ -187,3 +187,33 @@ The test output is below, and it confirms the suspicion:
 Δx avg. for SLIDERS      : 8.3571e+00 (inch)
   Dominant break side    : overbreak (26)
 ```
+
+## 5. Active Spin
+
+We correct the spin magnitude with the active spin percentage (datapoint available per pitcher per pitch type). New results:
+
+```
+samples: 147 pitches loaded.
+
+computing k for drag...
+computing RMS error...
+FINAL:
+  K         = 6.29668826e-04 (meter ** 2)
+  RMS       = 2.35281352e+00 (meter ** 2)
+
+computing k for magnus...
+computing RMS error...
+FINAL:
+  K         = 7.37208673e-05 (meter ** 2 * second)
+  RMS       = 1.68724134e+00 (meter ** 2 * second)
+
+Computing displacement error...
+
+Δx avg. (all samples)      : 4.3333e+00 (inch)
+  Δx avg. for FASTBALLS    : 4.0789e+00 (inch)
+  Δx avg. for OFFSPEEDS    : 5.0969e+00 (inch)
+  Δx avg. for CURVEBALLS   : 2.9538e+00 (inch)
+  Δx avg. for SLIDERS      : 5.0804e+00 (inch)
+```
+
+Also, the above configs use linear velocity for Magnus; it turns out more accurate, although even with squared velocity the active-spin corrected sims are more accurate than the ones before. More on this below
