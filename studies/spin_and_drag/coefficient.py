@@ -73,7 +73,7 @@ class Coefficient():
     bool complex        : treat coefficient as polynomial
     float init_value    : arbitrary starting point
     '''
-    def __init__(self, kind, complex, init_value=1.0e-4):
+    def __init__(self, kind, init_value=1.0e-4):
         self.attr = f"{kind}_coefficient"
 
         if kind == 'magnus':
@@ -81,42 +81,25 @@ class Coefficient():
         elif kind == 'drag':
             self.unit = const_units['alpha']
 
-        if not complex:
-            self.value      = init_value
-            self.get_value  = lambda: self.value
-            self.set_value  = self._new_scalar
-        else:
-            self.c_s        = []
-            self.power      = 3     # default to v**3
-            for i in range(self.power + 1):
-                self.c_s.append(init_value)
-            self.get_value  = self._compute_polynomial
-            self.set_value  = self._new_polynomial
+        self.value      = init_value
+        self.get_value  = lambda: self.value
+        self.set_value  = self._new_scalar
 
     def _new_scalar(self, new_value):
         self.value = new_value
 
-    def _new_polynomial(self, c_s):
-        self.c_s = c_s
-
-    def _compute_polynomial(self, v):
-        sum = 0
-        for i, term_coeff in enumerate(self.c_s):
-            sum += term_coeff * (v ** i)
-        return sum
-
 def find_scalar(kind, cfgs, other=None):
     delta = 1.0e-4
-    k_0 = Coefficient(kind, False)
-    k_delta = Coefficient(kind, False)
+    k_0 = Coefficient(kind)
+    k_delta = Coefficient(kind)
     k_0.set_value(0)
     k_delta.set_value(delta)
 
     if other is None:
         if kind == 'magnus':
-            other = Coefficient('drag', False)
+            other = Coefficient('drag')
         else:
-            other = Coefficient('magnus', False)
+            other = Coefficient('magnus')
 
     refs = extract_true_acc(cfgs)
     A, B = [], []
@@ -140,7 +123,7 @@ def find_scalar(kind, cfgs, other=None):
     
     A = numpy.array(A)
     B = numpy.array(B)
-    k = Coefficient(kind, False)
+    k = Coefficient(kind)
     k.set_value(-1 * numpy.sum(A*B)/numpy.sum(A*A))
 
     rms_errs = []
@@ -209,7 +192,7 @@ def main():
     print("")
     new_drag = Quant(run(cfgs, 'drag').get_value(), const_units['alpha'])
     print("")
-    other = Coefficient('drag', False)
+    other = Coefficient('drag')
     other.set_value(new_drag.magnitude)
     new_magnus = Quant(run(cfgs, 'magnus', other).get_value(), const_units['beta'])
 
