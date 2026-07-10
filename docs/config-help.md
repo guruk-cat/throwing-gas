@@ -4,6 +4,24 @@ A pitch config file is a YAML document that configures a single pitch. It has up
 
 A "pitch config" file is different from a "list config" file, which is used for producing batches of multiple pitch configs. See [CLI help](./cli-help.md) for details on the latter.
 
+<!-- toc -->
+## Table of Contents
+- [1. `format`](#1-format)
+- [2. `launch`](#2-launch)
+    - [2.1. Arm geometry](#21-arm-geometry)
+    - [2.2. Position](#22-position)
+    - [2.3. Velocity](#23-velocity)
+        - [Option A (direct velocity vector)](#option-a-direct-velocity-vector)
+        - [Option B (aim initial velo at a world-frame point)](#option-b-aim-initial-velo-at-a-world-frame-point)
+    - [2.4. Spin](#24-spin)
+        - [`statcast`](#statcast)
+        - [`manual`](#manual)
+    - [2.5. Scene](#25-scene)
+- [3. `simulation`](#3-simulation)
+- [4. `training`](#4-training)
+- [5. `metadata`](#5-metadata)
+<!-- /toc -->
+
 ## 1. `format`
 
 Selects which input grammar the rest of the file uses. 
