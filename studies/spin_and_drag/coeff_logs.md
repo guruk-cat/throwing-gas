@@ -188,7 +188,8 @@ The test output is below, and it confirms the suspicion:
   Dominant break side    : overbreak (26)
 ```
 
-## 5. Active Spin
+## Corrections
+### 5.1. Active Spin
 
 We correct the spin magnitude with the active spin percentage (datapoint available per pitcher per pitch type). New results:
 
@@ -217,3 +218,8 @@ Computing displacement error...
 ```
 
 Also, the above configs use linear velocity for Magnus; it turns out more accurate, although even with squared velocity the active-spin corrected sims are more accurate than the ones before. More on this below
+
+### 5.2. Linear Velocity Magnus Term
+
+We are re-introducing the assumptions dropped in section 2.3. It turns out, empirically, more accurate for a ball traveling at the speed and spin that a baseball typically travels in. Doing squared-velo would need to properly make the $\alpha$ and $\beta$ coefficients a function of $v$, and in our case it would simply cancel out anyways, effectively making it a linear-velo term.
+
